@@ -691,6 +691,11 @@ body.keyboard-active .nav{display:none} body.keyboard-active #app{padding-bottom
 
 .chat-reply-action{display:block;margin-top:8px;padding:9px 8px;border:0;background:transparent;color:var(--green-deep);font-size:13px;text-align:left;cursor:pointer}.chat-reply-quote,.chat-reply-compose{border-left:3px solid #51925d;background:#eef6ec;padding:8px 10px;border-radius:5px 10px 10px 5px;font-size:12px;overflow-wrap:anywhere}.chat-reply-quote strong,.chat-reply-quote span,.chat-reply-compose strong,.chat-reply-compose span{display:block}.chat-reply-quote span,.chat-reply-compose span{color:var(--ink-muted);white-space:pre-wrap}.chat-reply-compose{display:flex;justify-content:space-between;margin:8px 0}.chat-reply-compose button{border:0;background:transparent;color:var(--green-deep);font-size:22px;cursor:pointer;align-self:flex-start}.chat-group-panel{border:1px solid #dce8d8;background:#f8fbf7;border-radius:14px;padding:12px;margin:12px 0}.chat-reply-action:focus-visible,.chat-reply-compose button:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}
 
+
+.chat-group-details{margin:10px 0;border:1px solid #dce8d8;border-radius:14px;background:#f8fbf7}.chat-group-details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:9px 12px;color:var(--green-deep);font-size:13px;font-weight:700}.chat-group-details>summary::-webkit-details-marker{display:none}.chat-group-details[open]>summary span{transform:rotate(180deg)}.chat-group-details>summary:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px;border-radius:12px}.chat-group-details .chat-group-panel{border:0;background:transparent;border-radius:0;margin:0;padding:0 12px 12px}.chat-group-details #chat-group>p,.chat-group-details #chat-group>button{margin:0 12px 10px}.chat-group-details button:disabled{opacity:.65;cursor:wait}
+
+.chat-settings{margin:8px 0}.chat-settings>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;border:1px solid #d3e3d2;border-radius:20px;background:#f8fbf7;padding:8px 13px;min-height:40px;color:var(--green-deep);font-size:12px;font-weight:700;cursor:pointer}.chat-settings>summary::-webkit-details-marker{display:none}.chat-settings>summary span{font-size:17px}.chat-settings>summary:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}.chat-settings[open]>summary{background:#eaf3e8}
+
 </style>
 </head>
 <body>
@@ -1424,7 +1429,7 @@ async function withdrawRequest(index) {
 async function openProjectChat(index) {
   const p=state.realProjects[index];if(!p || (!p.is_owner && p.my_request_status!=='approved'))return;
   activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;
-  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><div id="chat-group"><p class="person-sub">Загружаем ссылку на группу…</p></div><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
+  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><details class="chat-group-details"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
   await Promise.all([refreshProjectChat(),loadChatGroup()]);
 }
 async function refreshProjectChat() {
@@ -1469,20 +1474,37 @@ function renderReplyPreview(){
  target.innerHTML=chatReply?`<div class="chat-reply-compose"><div><strong>Ответ: ${esc(chatReply.name)}</strong><span>${esc(String(chatReply.text||'').slice(0,140))}</span></div><button type="button" aria-label="Отменить ответ" onclick="cancelChatReply()">×</button></div>`:'';
 }
 const groupLinkValid=url=>/^https:\/\/t\.me\/(?:\+[A-Za-z0-9_-]{8,128}|joinchat\/[A-Za-z0-9_-]{8,128}|[A-Za-z][A-Za-z0-9_]{3,31})$/.test(url)&&url.length<=200;
+async function chatGroupRequest(action,extra){
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+ try{return await communityRequest(action,extra,{signal:controller.signal});}finally{clearTimeout(timer);}
+}
 async function loadChatGroup(){
  const chat=activeChat,box=document.getElementById('chat-group');if(!chat||!box)return;
- try{const data=await communityRequest('project_group_get',{project_id:chat.id});if(activeChat!==chat||document.getElementById('chat-group')!==box)return;activeGroupUrl=typeof data.url==='string'&&groupLinkValid(data.url)?data.url:null;renderChatGroup();}
- catch(e){if(document.getElementById('chat-group')===box)box.innerHTML='<p class="person-sub">Не удалось загрузить группу Telegram.</p>';}
+ box.innerHTML='<p class="person-sub" role="status">Загружаем ссылку на группу…</p>';
+ try{const data=await chatGroupRequest('project_group_get',{project_id:chat.id});if(activeChat!==chat||document.getElementById('chat-group')!==box)return;activeGroupUrl=typeof data.url==='string'&&groupLinkValid(data.url)?data.url:null;renderChatGroup();}
+ catch(e){if(activeChat===chat&&document.getElementById('chat-group')===box)box.innerHTML='<p class="person-sub" role="status">Не удалось загрузить ссылку. Проверь интернет и попробуй ещё раз.</p><button type="button" class="btn-pill-outline" onclick="loadChatGroup()">Повторить</button>';}
 }
 function renderChatGroup(){
  const box=document.getElementById('chat-group');if(!box||!activeChat)return;
- box.innerHTML=`<div class="chat-group-panel"><strong>Группа в Telegram</strong><p class="person-sub">Создаётся вручную. Участие добровольное; общение в Telegram не модерируется EIGE.</p>${activeGroupUrl?'<button type="button" class="btn-pill-outline" onclick="openChatGroup()">Открыть группу Telegram</button>':'<p class="person-sub">Ссылка ещё не добавлена.</p>'}${activeChat.is_owner?`<label class="field-label" for="chat-group-url">Ссылка-приглашение</label><input id="chat-group-url" class="field-input" type="url" maxlength="200" placeholder="https://t.me/+…" autocomplete="off"><p class="person-sub">Создай группу в Telegram и вставь ссылку. Чтобы удалить ссылку из EIGE, очисти поле и сохрани. Участники могут переслать её другим.</p><button type="button" class="btn-pill-outline" onclick="saveChatGroup()">Сохранить ссылку</button><p id="chat-group-status" class="person-sub" role="status"></p>`:''}</div>`;
+ box.innerHTML=`<div class="chat-group-panel"><p class="person-sub">Создаётся вручную. Участие добровольное; общение в Telegram не модерируется EIGE.</p><div id="chat-group-link">${activeGroupUrl?'<button type="button" class="btn-pill-outline" onclick="openChatGroup()">Открыть группу Telegram</button>':'<p class="person-sub">Ссылка ещё не добавлена.</p>'}</div>${activeChat.is_owner?`<label class="field-label" for="chat-group-url">Ссылка-приглашение</label><input id="chat-group-url" class="field-input" type="url" maxlength="200" placeholder="https://t.me/+…" autocomplete="off"><p class="person-sub">Создай группу в Telegram и вставь ссылку. Чтобы удалить её из EIGE, очисти поле и сохрани. Участники могут переслать её другим.</p><button id="chat-group-save" type="button" class="btn-pill-outline" onclick="saveChatGroup()">Сохранить ссылку</button><p id="chat-group-status" class="person-sub" role="status" aria-live="polite"></p>`:''}</div>`;
  const input=document.getElementById('chat-group-url');if(input)input.value=activeGroupUrl||'';
 }
 async function saveChatGroup(){
- const chat=activeChat,input=document.getElementById('chat-group-url'),status=document.getElementById('chat-group-status');if(!chat?.is_owner||!input||!status||input.disabled)return;
+ const chat=activeChat,input=document.getElementById('chat-group-url'),status=document.getElementById('chat-group-status'),button=document.getElementById('chat-group-save');if(!chat?.is_owner||!input||!status||input.disabled)return;
  const url=input.value.trim();if(url&&!groupLinkValid(url)){status.textContent='Нужна ссылка Telegram вида https://t.me/+… или https://t.me/имя_группы, без дополнительных параметров.';return;}
- input.disabled=true;status.textContent='Сохраняем…';try{await communityRequest('project_group_set',{project_id:chat.id,url});if(activeChat!==chat)return;activeGroupUrl=url||null;renderChatGroup();toast('Ссылка сохранена');}catch(e){status.textContent=e.message||'Не удалось сохранить ссылку.';input.disabled=false;}
+ input.disabled=true;if(button){button.disabled=true;button.textContent='Сохраняем…';}status.textContent='Сохраняем ссылку…';
+ try{
+   await chatGroupRequest('project_group_set',{project_id:chat.id,url});
+   if(activeChat!==chat||document.getElementById('chat-group-url')!==input)return;
+   activeGroupUrl=url||null;const link=document.getElementById('chat-group-link');
+   if(link)link.innerHTML=activeGroupUrl?'<button type="button" class="btn-pill-outline" onclick="openChatGroup()">Открыть группу Telegram</button>':'<p class="person-sub">Ссылка ещё не добавлена.</p>';
+   input.value=url;status.textContent=url?'Ссылка сохранена. Участники команды могут открыть группу.':'Ссылка удалена из EIGE.';
+ }catch(e){
+   if(activeChat!==chat||document.getElementById('chat-group-url')!==input)return;
+   status.textContent=(e?.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)?'Не удалось подтвердить сохранение. Проверь интернет и заново открой чат, чтобы увидеть, сохранилась ли ссылка.':(e.message||'Не удалось сохранить ссылку. Попробуй снова.');
+ }finally{
+   if(activeChat===chat&&document.getElementById('chat-group-url')===input){input.disabled=false;if(button){button.disabled=false;button.textContent='Сохранить ссылку';}}
+ }
 }
 function openChatGroup(){
  const url=activeGroupUrl;if(!url||!groupLinkValid(url))return;
@@ -1682,12 +1704,13 @@ async function syncProfile(action) {
   }
 }
 
-async function communityRequest(action, extra) {
+async function communityRequest(action, extra, options) {
   const initData = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData;
   if (!initData) throw new Error('Открой EIGE через кнопку бота в Telegram.');
   const res = await fetch('https://stmczoshulmqhjxlkest.supabase.co/functions/v1/clever-service', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({initData, action}, extra || {}))
+    body: JSON.stringify(Object.assign({initData, action}, extra || {})),
+    ...(options?.signal ? {signal:options.signal} : {})
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {
@@ -1973,7 +1996,7 @@ async function refreshCommunityQuietly() {
 
 // Expose handlers to window without top collision
 Object.assign(window, {
-  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
+  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
   render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests
 });
