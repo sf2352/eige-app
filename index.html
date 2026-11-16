@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FAF6D2">
 <title>EIGE — сообщество Якутии</title>
+<link rel="preconnect" href="https://stmczoshulmqhjxlkest.supabase.co" crossorigin>
+<link rel="preconnect" href="https://telegram.org" crossorigin>
 <style>
 @font-face {
   font-family: 'Manrope';
@@ -785,7 +787,9 @@ let adminUsers = [], adminProjects = [], adminReports = [];
 let adminReportsMore = false;
 let adminReportFilter = 'open', adminChatFilter = 'open';
 let adminChatReports = [], adminChatReportsMore = false, adminChatBlocks = [], adminChatBlocksMore = false;
-let activeChat = null, activeChatMessages = [], chatLoading = false, pendingChatReport = null;
+let activeChat = null, activeChatMessages = [], chatLoading = null, pendingChatReport = null;
+let chatMessagesSignature = null, chatGroupRequested = false;
+let profileFetchedAt = 0, myProjectsFetchedAt = 0;
 let chatMenuMessage = null, chatReacting = false, chatReply = null, activeGroupUrl = null;
 const chatReactions = [{key:'like',emoji:'👍',label:'Нравится'},{key:'heart',emoji:'❤️',label:'Сердце'},{key:'laugh',emoji:'😂',label:'Смешно'},{key:'wow',emoji:'😮',label:'Удивление'},{key:'sad',emoji:'😢',label:'Грустно'},{key:'fire',emoji:'🔥',label:'Огонь'}];
 let reportTarget = null;
@@ -859,10 +863,6 @@ function nav() {
       <button class="${state.page==='home'?'active':''}" onclick="go('home')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
         Главная
-      </button>
-      <button class="${state.page==='register'?'active':''}" onclick="go('register')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
-        Бланк
       </button>
       <button class="${state.page==='people'?'active':''}" onclick="go('people')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M2 20a7 7 0 0 1 14 0M19 11v6m-3-3h6"/></svg>
@@ -1071,7 +1071,7 @@ function people() {
       <p id="community-status" role="status" style="font-size:12px;color:var(--ink-muted)">${esc(state.communityError)}</p>
       <div id="results">${peopleResults()}</div>
       <button id="community-more" type="button" class="btn-pill-outline" onclick="loadCommunity(true)" style="display:${state.communityMore?'':'none'}">Загрузить ещё</button>
-      <p class="demo-note">Только тестовые данные. Личные сообщения пока не подключены.</p>
+      <p class="demo-note">Ссылка на Telegram показывается только с согласия участника. Используй тестовые данные.</p>
     </div>
   `;
 }
@@ -1175,7 +1175,7 @@ async function loadMyProjects(more = false) {
     const data=await communityRequest('list_my_projects',{offset:more?state.myProjects.length:0});
     const items=Array.isArray(data.projects)?data.projects:[];
     state.myProjects=more?state.myProjects.concat(items):items;
-    state.myProjectsMore=items.length===100; state.myProjectsLoaded=true; state.myProjectsError='';
+    state.myProjectsMore=items.length===100; state.myProjectsLoaded=true; state.myProjectsError=''; myProjectsFetchedAt=Date.now();
   } catch(e) {state.myProjectsLoaded=true;state.myProjectsError=e.message || 'Не удалось загрузить проекты.';}
   finally {state.myProjectsLoading=false;if(state.page==='profile')render();}
 }
@@ -1214,7 +1214,7 @@ function profile() {
   return `<div class="wrap"><div class="eyebrow">ТВОЙ ПРОФИЛЬ</div><h1 class="screen-title" style="text-align:left;margin-top:6px">Личный кабинет</h1>
   ${p ? `<div class="profile-stat-box"><div style="display:flex;justify-content:center;margin:0 auto 12px">${avatarMarkup(p.avatar_data, initials(p.name))}</div><h2 style="font-family:var(--font-serif);margin:0;font-size:20px;color:var(--green-deep)">${esc(p.name)}</h2><p style="color:var(--ink-muted);font-size:12px">${esc(roleLabel(p))}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags" style="justify-content:center">${tags(p.interests || p.profession)}</div><button class="btn-pill-primary" onclick="go('register')">Редактировать анкету</button></div>` : `<div class="profile-stat-box"><h2>Анкета ещё не заполнена</h2><button class="btn-pill-primary" onclick="go('register')">Заполнить анкету</button></div>`}
   <div class="card"><strong>О себе</strong><p class="person-sub">${esc(p?.about || 'Пока ничего не добавлено.')}</p><strong>Цель</strong><p class="person-sub">${esc(p?.goal || 'Пока не указана.')}</p></div>
-  <div class="card"><strong>Мои проекты</strong><p class="person-sub">Создавай проекты и управляй ими.</p><div id="my-projects">${myProjectsMarkup()}</div>${state.myProjectsMore ? '<button type="button" class="btn-pill-outline" onclick="loadMyProjects(true)">Загрузить ещё</button>' : ''}<button type="button" class="btn-pill-outline" onclick="openProjectForm()">Создать проект</button><p id="my-projects-status" role="status" class="person-sub">${esc(state.myProjectsError)}</p></div>
+  <div class="card"><strong>Мои проекты</strong><p class="person-sub">Управляй своими проектами. Новый проект можно создать в разделе «Проекты».</p><div id="my-projects">${myProjectsMarkup()}</div>${state.myProjectsMore ? '<button type="button" class="btn-pill-outline" onclick="loadMyProjects(true)">Загрузить ещё</button>' : ''}<p id="my-projects-status" role="status" class="person-sub">${esc(state.myProjectsError)}</p></div>
   <div class="card"><strong>Мой статус</strong><p class="person-sub">Виден участникам только в опубликованной анкете.</p><select id="availability-select" class="field-select">${['Не указан','Готов помочь','Работаю над проектом','Ищу команду','Занят'].map(x => `<option ${x === (p?.availability || 'Не указан') ? 'selected' : ''}>${x}</option>`).join('')}</select><button type="button" class="btn-pill-outline" onclick="saveAvailability()">Сохранить статус</button><p id="availability-status" role="status" class="person-sub"></p></div>
   <p class="demo-note">Изменения анкеты отправляются в базу при нажатии «Сохранить анкету».</p></div>`;
 }
@@ -1260,20 +1260,24 @@ function render() {
   if (['profile','settings'].includes(state.page) && !state.profileSettingsLoaded && !state.profileSettingsLoading) refreshOwnProfile();
   if (state.page === 'profile' && !state.myProjectsLoaded && !state.myProjectsLoading) loadMyProjects(false);
   if (state.page === 'admin' && adminSession && !adminLoaded && !adminLoading) loadAdminData();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function go(page) {
   if (state.launchState !== 'ready' || (!state.registered && page !== 'register')) return;
-  if (state.page !== page) {
+  const changed=state.page !== page;
+  if (changed) {
     state.search = '';
     if (page === 'people') state.communityLoaded = false;
     if (page === 'projects') state.projectsLoaded = false;
-    if (page === 'profile') { state.profileSettingsLoaded = false; state.myProjectsLoaded = false; }
+    if (page === 'profile') {
+      if(Date.now()-profileFetchedAt>15000)state.profileSettingsLoaded = false;
+      if(Date.now()-myProjectsFetchedAt>15000)state.myProjectsLoaded = false;
+    }
     if (page === 'settings') state.profileSettingsLoaded = false;
   }
   state.page = page;
   render();
+  if(changed)window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function toggleExtraFields() {
@@ -1298,7 +1302,7 @@ async function saveProfile(e) {
     const firstRegistration = !state.registered;
     state.profile = result.profile; state.profileDraft = {}; set('profile', state.profile);
     state.registered = true;
-    state.profileSettingsLoaded = true; state.profileSettingsError = ''; state.communityLoaded = false;
+    state.profileSettingsLoaded = true; state.profileSettingsError = ''; state.communityLoaded = false; profileFetchedAt=Date.now();
     toast('Анкета сохранена в базе'); go(firstRegistration ? 'home' : 'profile');
   } catch(err) { if(status) status.textContent = err.message || 'Ошибка сохранения. Проверь подключение к интернету.'; }
   finally { form.dataset.busy = '0'; if (button) button.disabled = false; }
@@ -1309,7 +1313,7 @@ async function refreshOwnProfile() {
   state.profileSettingsLoading = true;
   try {
     const data = await communityRequest('get_profile');
-    if (data.profile) { state.profile = data.profile; set('profile', state.profile); }
+    if (data.profile) { state.profile = data.profile; set('profile', state.profile); profileFetchedAt=Date.now(); }
     state.profileSettingsError = data.profile ? '' : 'Сначала заполни и сохрани анкету.';
   } catch (e) { state.profileSettingsError = e.message || 'Не удалось загрузить анкету.'; }
   finally { state.profileSettingsLoading = false; state.profileSettingsLoaded = true; if (state.page === 'profile' || state.page === 'settings') render(); }
@@ -1428,21 +1432,27 @@ async function withdrawRequest(index) {
 
 async function openProjectChat(index) {
   const p=state.realProjects[index];if(!p || (!p.is_owner && p.my_request_status!=='approved'))return;
-  activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;
-  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><details class="chat-group-details"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
-  await Promise.all([refreshProjectChat(),loadChatGroup()]);
+  activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;chatMessagesSignature=null;chatGroupRequested=false;
+  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><details class="chat-group-details" ontoggle="onChatGroupToggle(this)"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
+  await refreshProjectChat();
 }
 async function refreshProjectChat() {
-  const chat=activeChat,status=document.getElementById('chat-status'),list=document.getElementById('chat-list');if(!chat || !status || !list || chatLoading)return;
-  chatLoading=true;const nearBottom=list.scrollHeight-list.scrollTop-list.clientHeight < 65;
+  const chat=activeChat,status=document.getElementById('chat-status'),list=document.getElementById('chat-list');if(!chat || !status || !list || chatLoading===list)return;
+  chatLoading=list;const nearBottom=list.scrollHeight-list.scrollTop-list.clientHeight < 65;
   try {
-    const data=await communityRequest('project_chat_list',{project_id:chat.id});
+    const data=await chatGroupRequest('project_chat_list',{project_id:chat.id});
     if(activeChat?.id!==chat.id || document.getElementById('chat-list')!==list)return;
-    activeChatMessages=Array.isArray(data.messages)?data.messages:[];
-    renderChatMessages(list);
-    status.textContent=activeChatMessages.length?'Показаны последние 100 сообщений.':'Сообщений пока нет.';if(nearBottom)list.scrollTop=list.scrollHeight;
-  } catch(e) {if(document.getElementById('chat-status')===status)status.textContent=e.message || 'Не удалось загрузить чат.';}
-  finally {chatLoading=false;}
+    const messages=Array.isArray(data.messages)?data.messages:[],signature=JSON.stringify(messages);
+    activeChatMessages=messages;
+    if(signature!==chatMessagesSignature){renderChatMessages(list);chatMessagesSignature=signature;if(nearBottom)list.scrollTop=list.scrollHeight;}
+    status.textContent=activeChatMessages.length?'Показаны последние 100 сообщений.':'Сообщений пока нет.';
+  } catch(e) {
+    if(document.getElementById('chat-status')===status){
+      const denied=['Администратор ограничил тебе доступ к чатам.','Доступен только создателю и принятым участникам проекта.','Чат пока отключён: требуется настройка безопасности и модерации.'].includes(e?.message);
+      if(denied&&activeChat===chat){activeChat=null;activeChatMessages=[];chatMessagesSignature=null;chatReply=null;activeGroupUrl=null;list.innerHTML='';renderReplyPreview();const group=document.getElementById('chat-group');if(group)group.innerHTML='<p class="person-sub">Раздел недоступен.</p>';}
+      status.textContent=e?.name==='AbortError'?'Сервер долго не отвечает. Проверь интернет и обнови чат.':(e.message || 'Не удалось загрузить чат.');
+    }
+  } finally {if(chatLoading===list)chatLoading=null;}
 }
 function renderChatMessages(list) {
   list.innerHTML=activeChatMessages.map((m,i)=>{
@@ -1478,6 +1488,7 @@ async function chatGroupRequest(action,extra){
  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
  try{return await communityRequest(action,extra,{signal:controller.signal});}finally{clearTimeout(timer);}
 }
+function onChatGroupToggle(section){if(section.open&&!chatGroupRequested){chatGroupRequested=true;loadChatGroup();}}
 async function loadChatGroup(){
  const chat=activeChat,box=document.getElementById('chat-group');if(!chat||!box)return;
  box.innerHTML='<p class="person-sub" role="status">Загружаем ссылку на группу…</p>';
@@ -1578,7 +1589,7 @@ async function deleteMyAccount() {
   try {
     await communityRequest('delete_my_account');
     try {for(let i=localStorage.length-1;i>=0;i--){let key=localStorage.key(i);if(key?.startsWith('eige_'))localStorage.removeItem(key);}} catch(_){}
-    adminSession='';adminUsers=[];adminProjects=[];adminReports=[];adminChatReports=[];adminChatBlocks=[];adminLoaded=false;state.profile=null;state.profileDraft={};state.registered=false;state.page='register';state.myProjects=[];state.realProjects=[];state.communityProfiles=[];state.requests=[];state.projects=[];state.currentRequests=[];state.myProjectsLoaded=false;state.projectsLoaded=false;state.communityLoaded=false;state.profileSettingsLoaded=false;
+    adminSession='';adminUsers=[];adminProjects=[];adminReports=[];adminChatReports=[];adminChatBlocks=[];adminLoaded=false;profileFetchedAt=0;myProjectsFetchedAt=0;state.profile=null;state.profileDraft={};state.registered=false;state.page='register';state.myProjects=[];state.realProjects=[];state.communityProfiles=[];state.requests=[];state.projects=[];state.currentRequests=[];state.myProjectsLoaded=false;state.projectsLoaded=false;state.communityLoaded=false;state.profileSettingsLoaded=false;
     closeModal();render();toast('Аккаунт удалён');
   } catch(e){status.textContent=e.message||'Не удалось удалить аккаунт.';input.disabled=false;}
 }
@@ -1961,7 +1972,7 @@ async function startApp() {
     state.registered=!!data.profile;
     state.profileSettingsLoaded=!!data.profile;
     state.page=state.registered?'home':'register';
-    if(data.profile) set('profile',data.profile);
+    if(data.profile) {set('profile',data.profile);profileFetchedAt=Date.now();}
     state.launchState='ready'; state.launchMessage='';
   } catch(e) {
     state.profile=null; state.registered=false; state.launchState='error';
@@ -1996,7 +2007,7 @@ async function refreshCommunityQuietly() {
 
 // Expose handlers to window without top collision
 Object.assign(window, {
-  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
+  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
   render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests
 });
