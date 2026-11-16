@@ -688,6 +688,9 @@ body.keyboard-active .nav{display:none} body.keyboard-active #app{padding-bottom
 .chat-menu-toggle{border:0;background:transparent;border-radius:50%;width:38px;height:38px;font-size:25px;line-height:1;color:var(--green-deep);cursor:pointer;flex:none}.chat-menu-toggle:hover,.chat-menu-toggle:focus-visible{background:#e5efe3;outline:2px solid var(--green-deep)}
 .chat-message-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;margin:6px 0 8px}.chat-reaction-list,.chat-emoji-row{display:flex;flex-wrap:wrap;gap:6px}.chat-reaction-chip{border:1px solid #dbe9da;background:#f5f9f3;color:var(--green-deep);border-radius:18px;padding:4px 9px;cursor:pointer}.chat-reaction-chip.selected{background:#d8ead7;border-color:#448451}.chat-action-menu{margin-top:10px;padding:10px;border:1px solid #d9e8d9;background:#f8fbf7;border-radius:14px}.chat-menu-label{font-size:11px;color:var(--ink-muted)}.chat-emoji-row{margin-top:6px}.chat-emoji{font-size:20px;background:white;border:1px solid #e0eade;border-radius:10px;min-width:40px;height:40px;cursor:pointer}.chat-report-action{display:block;margin-top:8px;padding:9px 8px;border:0;background:transparent;color:#a33939;font-size:13px;text-align:left;cursor:pointer}.chat-emoji:focus-visible,.chat-reaction-chip:focus-visible,.chat-report-action:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}
 
+
+.chat-reply-action{display:block;margin-top:8px;padding:9px 8px;border:0;background:transparent;color:var(--green-deep);font-size:13px;text-align:left;cursor:pointer}.chat-reply-quote,.chat-reply-compose{border-left:3px solid #51925d;background:#eef6ec;padding:8px 10px;border-radius:5px 10px 10px 5px;font-size:12px;overflow-wrap:anywhere}.chat-reply-quote strong,.chat-reply-quote span,.chat-reply-compose strong,.chat-reply-compose span{display:block}.chat-reply-quote span,.chat-reply-compose span{color:var(--ink-muted);white-space:pre-wrap}.chat-reply-compose{display:flex;justify-content:space-between;margin:8px 0}.chat-reply-compose button{border:0;background:transparent;color:var(--green-deep);font-size:22px;cursor:pointer;align-self:flex-start}.chat-group-panel{border:1px solid #dce8d8;background:#f8fbf7;border-radius:14px;padding:12px;margin:12px 0}.chat-reply-action:focus-visible,.chat-reply-compose button:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}
+
 </style>
 </head>
 <body>
@@ -778,7 +781,7 @@ let adminReportsMore = false;
 let adminReportFilter = 'open', adminChatFilter = 'open';
 let adminChatReports = [], adminChatReportsMore = false, adminChatBlocks = [], adminChatBlocksMore = false;
 let activeChat = null, activeChatMessages = [], chatLoading = false, pendingChatReport = null;
-let chatMenuMessage = null, chatReacting = false;
+let chatMenuMessage = null, chatReacting = false, chatReply = null, activeGroupUrl = null;
 const chatReactions = [{key:'like',emoji:'👍',label:'Нравится'},{key:'heart',emoji:'❤️',label:'Сердце'},{key:'laugh',emoji:'😂',label:'Смешно'},{key:'wow',emoji:'😮',label:'Удивление'},{key:'sad',emoji:'😢',label:'Грустно'},{key:'fire',emoji:'🔥',label:'Огонь'}];
 let reportTarget = null;
 let adminLoaded = false, adminLoading = false, adminUsersMore = false, adminProjectsMore = false;
@@ -1420,9 +1423,9 @@ async function withdrawRequest(index) {
 
 async function openProjectChat(index) {
   const p=state.realProjects[index];if(!p || (!p.is_owner && p.my_request_status!=='approved'))return;
-  activeChat={id:p.id,title:p.title}; activeChatMessages=[]; chatMenuMessage=null;
-  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><form class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
-  await refreshProjectChat();
+  activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;
+  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><div id="chat-group"><p class="person-sub">Загружаем ссылку на группу…</p></div><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
+  await Promise.all([refreshProjectChat(),loadChatGroup()]);
 }
 async function refreshProjectChat() {
   const chat=activeChat,status=document.getElementById('chat-status'),list=document.getElementById('chat-list');if(!chat || !status || !list || chatLoading)return;
@@ -1441,7 +1444,7 @@ function renderChatMessages(list) {
     const reactions=Array.isArray(m.reactions)?m.reactions:[];
     const chips=reactions.map(r=>{const item=chatReactions.find(x=>x.key===r.reaction);if(!item||!Number.isSafeInteger(r.count)||r.count<1)return '';return `<button type="button" class="chat-reaction-chip ${r.mine?'selected':''}" onclick="reactToChat(${i},'${item.key}')" aria-label="${item.label}: ${r.count}${r.mine?', ваша реакция':''}" aria-pressed="${r.mine?'true':'false'}">${item.emoji} ${r.count}</button>`;}).join('');
     const open=chatMenuMessage===m.id;
-    return `<div class="card chat-message"><div class="chat-message-head"><strong>${esc(m.name)}</strong><span class="chat-message-date">${esc(formatChatDate(m.created_at))}</span><button type="button" class="chat-menu-toggle" aria-label="Действия с сообщением" aria-expanded="${open?'true':'false'}" onclick="toggleChatMenu(${i})">⋯</button></div><p class="chat-message-text">${esc(m.text)}</p>${chips?`<div class="chat-reaction-list">${chips}</div>`:''}${open?`<div class="chat-action-menu"><span class="chat-menu-label">Реакция</span><div class="chat-emoji-row">${chatReactions.map(r=>`<button type="button" class="chat-emoji" aria-label="${r.label}" title="${r.label}" onclick="reactToChat(${i},'${r.key}')">${r.emoji}</button>`).join('')}</div>${!m.mine?`<button type="button" class="chat-report-action" onclick="askChatReport(${i})">Пожаловаться</button>`:''}</div>`:''}</div>`;
+    return `<div class="card chat-message"><div class="chat-message-head"><strong>${esc(m.name)}</strong><span class="chat-message-date">${esc(formatChatDate(m.created_at))}</span><button type="button" class="chat-menu-toggle" aria-label="Действия с сообщением" aria-expanded="${open?'true':'false'}" onclick="toggleChatMenu(${i})">⋯</button></div>${m.reply?`<div class="chat-reply-quote">${m.reply.deleted?'Сообщение удалено':`<strong>${esc(m.reply.name||'Участник')}</strong><span>${esc(m.reply.text||'')}</span>`}</div>`:''}<p class="chat-message-text">${esc(m.text)}</p>${chips?`<div class="chat-reaction-list">${chips}</div>`:''}${open?`<div class="chat-action-menu"><span class="chat-menu-label">Реакция</span><div class="chat-emoji-row">${chatReactions.map(r=>`<button type="button" class="chat-emoji" aria-label="${r.label}" title="${r.label}" onclick="reactToChat(${i},'${r.key}')">${r.emoji}</button>`).join('')}</div><button type="button" class="chat-reply-action" onclick="chooseChatReply(${i})">Ответить</button>${!m.mine?`<button type="button" class="chat-report-action" onclick="askChatReport(${i})">Пожаловаться</button>`:''}</div>`:''}</div>`;
   }).join('');
 }
 function toggleChatMenu(index) {
@@ -1456,6 +1459,35 @@ async function reactToChat(index,key) {
   catch(e){if(status)status.textContent=e.message||'Не удалось сохранить реакцию.';}
   finally {chatReacting=false;}
 }
+function chooseChatReply(index) {
+ const m=activeChatMessages[index],list=document.getElementById('chat-list');if(!m||!activeChat)return;
+ chatReply={id:m.id,name:m.name,text:m.text};chatMenuMessage=null;if(list)renderChatMessages(list);renderReplyPreview();document.querySelector('#chat-compose textarea')?.focus();
+}
+function cancelChatReply(){chatReply=null;renderReplyPreview();}
+function renderReplyPreview(){
+ const target=document.getElementById('chat-reply-preview');if(!target)return;
+ target.innerHTML=chatReply?`<div class="chat-reply-compose"><div><strong>Ответ: ${esc(chatReply.name)}</strong><span>${esc(String(chatReply.text||'').slice(0,140))}</span></div><button type="button" aria-label="Отменить ответ" onclick="cancelChatReply()">×</button></div>`:'';
+}
+const groupLinkValid=url=>/^https:\/\/t\.me\/(?:\+[A-Za-z0-9_-]{8,128}|joinchat\/[A-Za-z0-9_-]{8,128}|[A-Za-z][A-Za-z0-9_]{3,31})$/.test(url)&&url.length<=200;
+async function loadChatGroup(){
+ const chat=activeChat,box=document.getElementById('chat-group');if(!chat||!box)return;
+ try{const data=await communityRequest('project_group_get',{project_id:chat.id});if(activeChat!==chat||document.getElementById('chat-group')!==box)return;activeGroupUrl=typeof data.url==='string'&&groupLinkValid(data.url)?data.url:null;renderChatGroup();}
+ catch(e){if(document.getElementById('chat-group')===box)box.innerHTML='<p class="person-sub">Не удалось загрузить группу Telegram.</p>';}
+}
+function renderChatGroup(){
+ const box=document.getElementById('chat-group');if(!box||!activeChat)return;
+ box.innerHTML=`<div class="chat-group-panel"><strong>Группа в Telegram</strong><p class="person-sub">Создаётся вручную. Участие добровольное; общение в Telegram не модерируется EIGE.</p>${activeGroupUrl?'<button type="button" class="btn-pill-outline" onclick="openChatGroup()">Открыть группу Telegram</button>':'<p class="person-sub">Ссылка ещё не добавлена.</p>'}${activeChat.is_owner?`<label class="field-label" for="chat-group-url">Ссылка-приглашение</label><input id="chat-group-url" class="field-input" type="url" maxlength="200" placeholder="https://t.me/+…" autocomplete="off"><p class="person-sub">Создай группу в Telegram и вставь ссылку. Чтобы удалить ссылку из EIGE, очисти поле и сохрани. Участники могут переслать её другим.</p><button type="button" class="btn-pill-outline" onclick="saveChatGroup()">Сохранить ссылку</button><p id="chat-group-status" class="person-sub" role="status"></p>`:''}</div>`;
+ const input=document.getElementById('chat-group-url');if(input)input.value=activeGroupUrl||'';
+}
+async function saveChatGroup(){
+ const chat=activeChat,input=document.getElementById('chat-group-url'),status=document.getElementById('chat-group-status');if(!chat?.is_owner||!input||!status||input.disabled)return;
+ const url=input.value.trim();if(url&&!groupLinkValid(url)){status.textContent='Нужна ссылка Telegram вида https://t.me/+… или https://t.me/имя_группы, без дополнительных параметров.';return;}
+ input.disabled=true;status.textContent='Сохраняем…';try{await communityRequest('project_group_set',{project_id:chat.id,url});if(activeChat!==chat)return;activeGroupUrl=url||null;renderChatGroup();toast('Ссылка сохранена');}catch(e){status.textContent=e.message||'Не удалось сохранить ссылку.';input.disabled=false;}
+}
+function openChatGroup(){
+ const url=activeGroupUrl;if(!url||!groupLinkValid(url))return;
+ if(window.Telegram?.WebApp?.openTelegramLink)window.Telegram.WebApp.openTelegramLink(url);else window.open(url,'_blank','noopener,noreferrer');
+}
 function formatChatDate(value) {
   const d=new Date(value);return Number.isNaN(d.getTime())?'':d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 }
@@ -1463,7 +1495,7 @@ async function sendProjectChat(e) {
   e.preventDefault();const chat=activeChat,form=e.target,status=document.getElementById('chat-status');if(!chat || !status || form.dataset.busy==='1')return;
   form.dataset.busy='1';const btn=form.querySelector('button[type=submit]');if(btn)btn.disabled=true;
   const data=Object.fromEntries(new FormData(form));status.textContent='Отправляем…';
-  try{await communityRequest('project_chat_send',{project_id:chat.id,text:data.message});form.reset();await refreshProjectChat();}
+  const reply=chatReply;try{await communityRequest('project_chat_send',{project_id:chat.id,text:data.message,...(reply?{reply_to:reply.id}:{})});form.reset();if(chatReply===reply){chatReply=null;renderReplyPreview();}await refreshProjectChat();}
   catch(e){status.textContent=e.message||'Не удалось отправить сообщение.';}
   finally{form.dataset.busy='0';if(btn)btn.disabled=false;}
 }
@@ -1659,6 +1691,8 @@ async function communityRequest(action, extra) {
   });
   const data = await res.json();
   if (!res.ok || !data.ok) {
+    if (data.error === 'Reply target not found') throw new Error('Сообщение, на которое ты отвечаешь, уже удалено. Отмени ответ и отправь снова.');
+    if (data.error === 'Invalid group link') throw new Error('Не удалось сохранить ссылку на группу Telegram.');
     if (data.error === 'Reaction limit') throw new Error('Слишком много реакций. Подожди немного.');
     if (data.error === 'Message not found') throw new Error('Сообщение уже удалено.');
     if (data.error === 'Chat limit') throw new Error('Не больше пяти сообщений в минуту. Подожди немного.');
@@ -1939,7 +1973,7 @@ async function refreshCommunityQuietly() {
 
 // Expose handlers to window without top collision
 Object.assign(window, {
-  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
+  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
   render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests
 });
