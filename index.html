@@ -698,6 +698,8 @@ body.keyboard-active .nav{display:none} body.keyboard-active #app{padding-bottom
 
 .chat-settings{margin:8px 0}.chat-settings>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;border:1px solid #d3e3d2;border-radius:20px;background:#f8fbf7;padding:8px 13px;min-height:40px;color:var(--green-deep);font-size:12px;font-weight:700;cursor:pointer}.chat-settings>summary::-webkit-details-marker{display:none}.chat-settings>summary span{font-size:17px}.chat-settings>summary:focus-visible{outline:2px solid var(--green-deep);outline-offset:2px}.chat-settings[open]>summary{background:#eaf3e8}
 
+.chat-settings-content{padding:10px 2px}.chat-notify-row{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;cursor:pointer}.chat-notify-row input{width:19px;height:19px;accent-color:var(--green-deep);flex:none;margin-top:2px}.chat-notify-row small{display:block;color:var(--ink-muted);font-size:11px;line-height:1.5;margin-top:4px}.chat-rules{padding:10px 4px;border-top:1px solid #e3eadf}.chat-rules-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;color:var(--ink-muted)}.chat-rules textarea{margin:8px 0;min-height:85px}.chat-settings>button{margin-bottom:8px}
+
 </style>
 </head>
 <body>
@@ -788,7 +790,7 @@ let adminReportsMore = false;
 let adminReportFilter = 'open', adminChatFilter = 'open';
 let adminChatReports = [], adminChatReportsMore = false, adminChatBlocks = [], adminChatBlocksMore = false;
 let activeChat = null, activeChatMessages = [], chatLoading = null, pendingChatReport = null;
-let chatMessagesSignature = null, chatGroupRequested = false;
+let chatMessagesSignature = null, chatGroupRequested = false, chatSettingsRequested = false;
 let profileFetchedAt = 0, myProjectsFetchedAt = 0;
 let chatMenuMessage = null, chatReacting = false, chatReply = null, activeGroupUrl = null;
 const chatReactions = [{key:'like',emoji:'👍',label:'Нравится'},{key:'heart',emoji:'❤️',label:'Сердце'},{key:'laugh',emoji:'😂',label:'Смешно'},{key:'wow',emoji:'😮',label:'Удивление'},{key:'sad',emoji:'😢',label:'Грустно'},{key:'fire',emoji:'🔥',label:'Огонь'}];
@@ -1432,8 +1434,8 @@ async function withdrawRequest(index) {
 
 async function openProjectChat(index) {
   const p=state.realProjects[index];if(!p || (!p.is_owner && p.my_request_status!=='approved'))return;
-  activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;chatMessagesSignature=null;chatGroupRequested=false;
-  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><details class="chat-group-details" ontoggle="onChatGroupToggle(this)"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
+  activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;chatMessagesSignature=null;chatGroupRequested=false;chatSettingsRequested=false;
+  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings" ontoggle="onChatSettingsToggle(this)"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><div id="chat-preferences"><p class="person-sub" role="status">Загружаем настройки…</p></div>${p.is_owner?'<button type="button" class="btn-pill-outline" onclick="openChatMembers()">Участники и заявки</button>':''}<details class="chat-group-details" ontoggle="onChatGroupToggle(this)"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
   await refreshProjectChat();
 }
 async function refreshProjectChat() {
@@ -1449,7 +1451,7 @@ async function refreshProjectChat() {
   } catch(e) {
     if(document.getElementById('chat-status')===status){
       const denied=['Администратор ограничил тебе доступ к чатам.','Доступен только создателю и принятым участникам проекта.','Чат пока отключён: требуется настройка безопасности и модерации.'].includes(e?.message);
-      if(denied&&activeChat===chat){activeChat=null;activeChatMessages=[];chatMessagesSignature=null;chatReply=null;activeGroupUrl=null;list.innerHTML='';renderReplyPreview();const group=document.getElementById('chat-group');if(group)group.innerHTML='<p class="person-sub">Раздел недоступен.</p>';}
+      if(denied&&activeChat===chat){activeChat=null;activeChatMessages=[];chatMessagesSignature=null;chatReply=null;activeGroupUrl=null;list.innerHTML='';renderReplyPreview();const group=document.getElementById('chat-group');if(group)group.innerHTML='<p class="person-sub">Раздел недоступен.</p>';const prefs=document.getElementById('chat-preferences');if(prefs)prefs.innerHTML='<p class="person-sub">Настройки недоступны.</p>';}
       status.textContent=e?.name==='AbortError'?'Сервер долго не отвечает. Проверь интернет и обнови чат.':(e.message || 'Не удалось загрузить чат.');
     }
   } finally {if(chatLoading===list)chatLoading=null;}
@@ -1487,6 +1489,43 @@ const groupLinkValid=url=>/^https:\/\/t\.me\/(?:\+[A-Za-z0-9_-]{8,128}|joinchat\
 async function chatGroupRequest(action,extra){
  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
  try{return await communityRequest(action,extra,{signal:controller.signal});}finally{clearTimeout(timer);}
+}
+function onChatSettingsToggle(section){if(section.open&&!chatSettingsRequested){chatSettingsRequested=true;loadChatSettings();}}
+async function loadChatSettings(){
+ const chat=activeChat,box=document.getElementById('chat-preferences');if(!chat||!box)return;
+ box.innerHTML='<p class="person-sub" role="status">Загружаем настройки…</p>';
+ try{
+  const data=await chatGroupRequest('project_chat_settings_get',{project_id:chat.id});
+  if(activeChat!==chat||document.getElementById('chat-preferences')!==box)return;
+  if(typeof data.notifications_enabled!=='boolean'||typeof data.rules!=='string')throw new Error('Настройки недоступны');
+  box.innerHTML=`<div class="chat-settings-content"><label class="chat-notify-row"><input id="chat-notifications" type="checkbox" ${data.notifications_enabled?'checked':''} onchange="setChatNotifications(this)"><span><strong>Уведомления о сообщениях</strong><small>Для этого проекта, в личном чате бота. Запусти бота: доставка не гарантирована. Уведомления о заявках не меняются.</small></span></label><p id="chat-notifications-status" class="person-sub" role="status"></p><button id="chat-notifications-retry" type="button" class="btn-pill-outline" onclick="refreshChatNotificationSetting()" hidden>Проверить настройку</button><div class="chat-rules"><strong>Правила чата</strong>${chat.is_owner?`<p class="person-sub">Их увидят участники команды в настройках. Не указывай личные данные.</p><textarea id="chat-rules-input" class="field-textarea" maxlength="500" placeholder="Например: общаемся уважительно">${esc(data.rules)}</textarea><button id="chat-rules-save" type="button" class="btn-pill-outline" onclick="saveChatRules()">Сохранить правила</button><p id="chat-rules-status" class="person-sub" role="status"></p>`:`<p class="chat-rules-text">${data.rules?esc(data.rules):'Создатель пока не добавил правила.'}</p>`}</div></div>`;
+ }catch(e){if(activeChat===chat&&document.getElementById('chat-preferences')===box)box.innerHTML='<p class="person-sub" role="status">Не удалось загрузить настройки. Проверь интернет и попробуй снова.</p><button type="button" class="btn-pill-outline" onclick="loadChatSettings()">Повторить</button>';}
+}
+async function setChatNotifications(input){
+ const chat=activeChat,status=document.getElementById('chat-notifications-status'),retry=document.getElementById('chat-notifications-retry');if(!chat||!status||!input||input.disabled)return;
+ const enabled=!!input.checked;input.disabled=true;status.textContent='Сохраняем…';if(retry)retry.hidden=true;
+ try{await chatGroupRequest('project_chat_notifications_set',{project_id:chat.id,enabled});if(activeChat!==chat||document.getElementById('chat-notifications')!==input)return;status.textContent=enabled?'Уведомления о сообщениях включены.':'Уведомления о сообщениях выключены.';input.disabled=false;}
+ catch(e){if(activeChat!==chat||document.getElementById('chat-notifications')!==input)return;status.textContent='Не удалось подтвердить настройку. Проверь подключение и нажми «Проверить настройку».';if(retry)retry.hidden=false;}
+}
+async function refreshChatNotificationSetting(){
+ const chat=activeChat,input=document.getElementById('chat-notifications'),status=document.getElementById('chat-notifications-status'),retry=document.getElementById('chat-notifications-retry');if(!chat||!input||!status)return;
+ if(retry)retry.disabled=true;status.textContent='Проверяем…';
+ try{const data=await chatGroupRequest('project_chat_settings_get',{project_id:chat.id});if(activeChat!==chat||document.getElementById('chat-notifications')!==input)return;if(typeof data.notifications_enabled!=='boolean')throw new Error('Bad setting');input.checked=data.notifications_enabled;input.disabled=false;status.textContent=input.checked?'Уведомления о сообщениях включены.':'Уведомления о сообщениях выключены.';if(retry)retry.hidden=true;}
+ catch(e){if(activeChat===chat&&document.getElementById('chat-notifications')===input)status.textContent='Не удалось проверить настройку. Попробуй ещё раз.';}
+ finally{if(retry)retry.disabled=false;}
+}
+async function saveChatRules(){
+ const chat=activeChat,input=document.getElementById('chat-rules-input'),button=document.getElementById('chat-rules-save'),status=document.getElementById('chat-rules-status');if(!chat?.is_owner||!input||!status||input.disabled)return;
+ const rules=input.value;if(rules.length>500){status.textContent='Правила должны быть не длиннее 500 символов.';return;}
+ input.disabled=true;if(button){button.disabled=true;button.textContent='Сохраняем…';}status.textContent='Сохраняем правила…';
+ try{await chatGroupRequest('project_chat_rules_set',{project_id:chat.id,rules});if(activeChat!==chat||document.getElementById('chat-rules-input')!==input)return;input.value=rules.trim();status.textContent='Правила сохранены. Участники увидят их в настройках чата.';}
+ catch(e){if(activeChat===chat&&document.getElementById('chat-rules-input')===input)status.textContent='Не удалось подтвердить сохранение. Проверь интернет и заново открой чат, чтобы увидеть результат.';}
+ finally{if(activeChat===chat&&document.getElementById('chat-rules-input')===input){input.disabled=false;if(button){button.disabled=false;button.textContent='Сохранить правила';}}}
+}
+function openChatMembers(){
+ const chat=activeChat;if(!chat?.is_owner)return;const index=state.realProjects.findIndex(p=>p.id===chat.id);
+ if(index<0){const status=document.getElementById('chat-status');if(status)status.textContent='Проект не найден. Закрой чат и обнови список проектов.';return;}
+ viewProjectRequests(index);
 }
 function onChatGroupToggle(section){if(section.open&&!chatGroupRequested){chatGroupRequested=true;loadChatGroup();}}
 async function loadChatGroup(){
@@ -1546,12 +1585,12 @@ async function submitChatReport(){
 
 async function viewProjectRequests(index) {
   const p=state.realProjects[index]; if (!p) return;
-  const status=document.getElementById('project-detail-status'); if (status) status.textContent='Загружаем заявки…';
+  const status=document.getElementById('project-detail-status') || document.getElementById('chat-status'); if (status) status.textContent='Загружаем заявки…';
   try {
     const data=await communityRequest('project_requests',{project_id:p.id});
     state.currentRequests = Array.isArray(data.requests)?data.requests:[];
     const rows=state.currentRequests.map((r,i)=>`<div class="card"><strong>${esc(r.name)}</strong><p class="person-sub">${esc(roleLabel(r))} · ${esc(requestStatus(r.status))}</p>${r.status==='pending'?`<button class="btn-pill-primary" onclick="decideRequest(${index},${i},'approved')">Принять</button><button class="btn-pill-outline" onclick="decideRequest(${index},${i},'rejected')">Отклонить</button>`:r.status==='approved'?`<button class="btn-pill-outline danger-btn" onclick="askRemoveMember(${index},${i})">Удалить из команды</button>`:''}</div>`).join('');
-    modal('Заявки в проект', `<p class="person-sub">${esc(p.title)}</p>${rows || '<p class="demo-note">Пока нет заявок.</p>'}<p id="request-list-status" role="status" class="demo-note"></p>`);
+    modal('Участники и заявки', `<p class="person-sub">${esc(p.title)} · Вы — создатель проекта</p><p class="person-sub">Ниже показаны заявки и принятые участники.</p>${rows || '<p class="demo-note">Пока нет заявок.</p>'}<p id="request-list-status" role="status" class="demo-note"></p>`);
   } catch(e) { if(status) status.textContent=e.message || 'Не удалось загрузить заявки.'; }
 }
 
@@ -2007,7 +2046,7 @@ async function refreshCommunityQuietly() {
 
 // Expose handlers to window without top collision
 Object.assign(window, {
-  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
+  state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
   render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests
 });
