@@ -567,6 +567,14 @@ button { cursor: pointer; }
   color: #FFFDF0;
   border-color: var(--green-deep);
 }
+.skill-picker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.skill-picker .chip{white-space:normal;text-align:left;cursor:pointer}
+.skill-add{display:flex;gap:8px;align-items:center;margin-top:6px}
+.skill-add .field-input{flex:1;min-width:0}
+.skill-add .btn-pill-outline{margin:0;width:auto;padding:10px 14px}
+.tag.match{background:#D8EAD7;color:var(--green-deep);border:1px solid #448451}
+.match-score{font-size:11px;font-weight:800;color:var(--green-deep);margin:6px 0 4px}
+.skill-note{font-size:11px;color:var(--ink-muted);margin:4px 0 0}
 
 /* Modals */
 .modal-bg {
@@ -783,6 +791,53 @@ function tags(str) {
   return (str || '').split(',').map(s => s.trim()).filter(Boolean).map(s => `<span class="tag">${esc(s)}</span>`).join('');
 }
 
+// Skills are stored in lowercase so that matching ignores spelling case.
+const skillPresets = ['дизайн','программирование','видео','монтаж','фото','тексты','иллюстрация','презентации','организация','исследования','соцсети','музыка','3d','робототехника','язык саха','переводы','финансы','выступления'];
+function parseSkills(value) {
+  const list = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const out = [];
+  for (const raw of list) {
+    if (typeof raw !== 'string') continue;
+    const v = raw.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (!v || v.length > 30 || !/^[\p{L}\p{N}][\p{L}\p{N} .+#/-]*$/u.test(v) || out.includes(v)) continue;
+    out.push(v);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+function skillTags(list, highlight) {
+  const marked = new Set(Array.isArray(highlight) ? highlight : []);
+  return parseSkills(list).map(s => `<span class="tag ${marked.has(s) ? 'match' : ''}">${esc(s)}</span>`).join('');
+}
+function skillPicker(id, selected, name) {
+  const chosen = parseSkills(selected);
+  const all = [...new Set([...skillPresets, ...chosen])];
+  return `<div id="${id}"><input type="hidden" name="${name}" id="${id}-value" value="${esc(chosen.join(','))}"><div class="skill-picker" id="${id}-chips">${all.map(x => `<button type="button" class="chip ${chosen.includes(x) ? 'active' : ''}" aria-pressed="${chosen.includes(x) ? 'true' : 'false'}" onclick="toggleSkill('${id}',this.dataset.skill)" data-skill="${esc(x)}">${esc(x)}</button>`).join('')}</div><div class="skill-add"><input class="field-input" id="${id}-custom" maxlength="30" placeholder="Свой навык, например: анимация" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomSkill('${id}')}"><button type="button" class="btn-pill-outline" onclick="addCustomSkill('${id}')">Добавить</button></div><p class="skill-note" id="${id}-note">Выбрано: ${chosen.length} из 20.</p></div>`;
+}
+function setSkillValue(id, list) {
+  const hidden = document.getElementById(id + '-value'), chips = document.getElementById(id + '-chips'), note = document.getElementById(id + '-note');
+  if (!hidden || !chips) return;
+  const chosen = parseSkills(list);
+  hidden.value = chosen.join(',');
+  const all = [...new Set([...skillPresets, ...chosen])];
+  chips.innerHTML = all.map(x => `<button type="button" class="chip ${chosen.includes(x) ? 'active' : ''}" aria-pressed="${chosen.includes(x) ? 'true' : 'false'}" onclick="toggleSkill('${id}',this.dataset.skill)" data-skill="${esc(x)}">${esc(x)}</button>`).join('');
+  if (note) note.textContent = 'Выбрано: ' + chosen.length + ' из 20.';
+}
+function toggleSkill(id, skill) {
+  const hidden = document.getElementById(id + '-value'); if (!hidden) return;
+  const chosen = parseSkills(hidden.value), key = parseSkills([skill])[0]; if (!key) return;
+  setSkillValue(id, chosen.includes(key) ? chosen.filter(x => x !== key) : chosen.concat(key));
+}
+function addCustomSkill(id) {
+  const input = document.getElementById(id + '-custom'), hidden = document.getElementById(id + '-value'), note = document.getElementById(id + '-note'); if (!input || !hidden) return;
+  const key = parseSkills([input.value])[0];
+  if (!key) { if (note) note.textContent = 'Навык: до 30 символов, буквы и цифры.'; return; }
+  const chosen = parseSkills(hidden.value);
+  if (chosen.length >= 20 && !chosen.includes(key)) { if (note) note.textContent = 'Не больше 20 навыков.'; return; }
+  input.value = '';
+  setSkillValue(id, chosen.includes(key) ? chosen : chosen.concat(key));
+}
+
 // Admin session is held only in memory and cleared when the app closes.
 let adminSession = '';
 let adminUsers = [], adminProjects = [], adminReports = [];
@@ -996,6 +1051,12 @@ function register() {
           <input class="field-input" name="profession" maxlength="90" value="${esc(p.profession||'')}" placeholder="Например: IT, дизайн, креатив">
         </div>
 
+        <div class="field-group">
+          <label class="field-label">МОИ НАВЫКИ</label>
+          <p class="skill-note" style="margin:0 12px 6px">По ним создатели проектов смогут найти тебя в подборе команды, если анкета опубликована.</p>
+          ${skillPicker('profile-skills', p.skills, 'skills')}
+        </div>
+
         <!-- Extra details toggle -->
         <div class="details-toggle">
           <button type="button" onclick="toggleExtraFields()">
@@ -1083,10 +1144,10 @@ function peopleResults() {
   const q = state.search.toLowerCase().trim();
   const matches = state.communityProfiles.map((p, index) => ({p, index})).filter(({p}) => {
     const matchesRole = !state.peopleFilters.length || state.peopleFilters.some(f => f === 'Готов помочь' ? p.availability === 'Готов помочь' : p.role === f);
-    return matchesRole && [p.name,p.role,p.profession,p.interests,p.availability].join(' ').toLowerCase().includes(q);
+    return matchesRole && [p.name,p.role,p.profession,p.interests,p.availability,parseSkills(p.skills).join(' ')].join(' ').toLowerCase().includes(q);
   });
   if (!matches.length) return '<div class="empty">Пока нет подходящих опубликованных анкет.</div>';
-  return matches.map(({p,index}) => `<button type="button" class="people-row" onclick="openRealPerson(${index})">${avatarMarkup(p.avatar_data,initials(p.name))}<span class="people-info"><span class="person-name">${esc(p.name)}</span><span class="person-sub" style="display:block">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}${p.city ? ' · ' + esc(p.city) : ''}${p.country ? ' · ' + esc(p.country) : ''}</span><span class="tags">${tags(p.interests)}</span></span><span class="arrow" aria-hidden="true">›</span></button>`).join('');
+  return matches.map(({p,index}) => `<button type="button" class="people-row" onclick="openRealPerson(${index})">${avatarMarkup(p.avatar_data,initials(p.name))}<span class="people-info"><span class="person-name">${esc(p.name)}</span><span class="person-sub" style="display:block">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}${p.city ? ' · ' + esc(p.city) : ''}${p.country ? ' · ' + esc(p.country) : ''}</span><span class="tags">${tags(p.interests)}${skillTags(p.skills)}</span></span><span class="arrow" aria-hidden="true">›</span></button>`).join('');
 }
 
 function filterPeople(f) {
@@ -1152,9 +1213,9 @@ function projects() {
 function projectResults() {
   if (!state.projectsLoaded) return '<div class="empty">Загружаем проекты…</div>';
   const q = state.search.toLowerCase().trim();
-  const items = state.realProjects.map((p,index)=>({p,index})).filter(({p}) => (state.projectFilter === 'Все' || p.category === state.projectFilter) && [p.title,p.category,p.description,p.city].join(' ').toLowerCase().includes(q));
+  const items = state.realProjects.map((p,index)=>({p,index})).filter(({p}) => (state.projectFilter === 'Все' || p.category === state.projectFilter) && [p.title,p.category,p.description,p.city,parseSkills(p.wanted_skills).join(' ')].join(' ').toLowerCase().includes(q));
   if (!items.length) return '<div class="empty">Проектов пока нет или они не найдены.</div>';
-  return items.map(({p,index}) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">${avatarMarkup(p.avatar_data,'✦',true)}<div><div class="project-title">${esc(p.title)}</div><div class="person-sub">${esc(p.category)}${p.city?' · '+esc(p.city):''}${p.country?' · '+esc(p.country):''}</div></div></div><div class="project-text">${esc(p.description)}</div><div class="card-footer"><span class="person-sub">${p.is_owner ? 'Мой проект' : p.my_request_status ? 'Заявка: '+esc(requestStatus(p.my_request_status)) : 'Открыт для заявок'}</span><button type="button" class="btn-card-action" onclick="projectDetail(${index})">Подробнее →</button></div></div>`).join('');
+  return items.map(({p,index}) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">${avatarMarkup(p.avatar_data,'✦',true)}<div><div class="project-title">${esc(p.title)}</div><div class="person-sub">${esc(p.category)}${p.city?' · '+esc(p.city):''}${p.country?' · '+esc(p.country):''}</div></div></div><div class="project-text">${esc(p.description)}</div>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags">${skillTags(p.wanted_skills)}</div>` : ''}<div class="card-footer"><span class="person-sub">${p.is_owner ? 'Мой проект' : p.my_request_status ? 'Заявка: '+esc(requestStatus(p.my_request_status)) : 'Открыт для заявок'}</span><button type="button" class="btn-card-action" onclick="projectDetail(${index})">Подробнее →</button></div></div>`).join('');
 }
 function requestStatus(status) { return ({pending:'на рассмотрении',approved:'принята',rejected:'отклонена'})[status] || 'неизвестно'; }
 
@@ -1167,7 +1228,7 @@ function searchChange(v) {
 function myProjectsMarkup() {
   if (!state.myProjectsLoaded) return '<p class="person-sub">Загружаем проекты…</p>';
   if (!state.myProjects.length) return '<p class="person-sub">У тебя пока нет проектов.</p>';
-  return state.myProjects.map((p,i)=>`<div class="card" style="margin:10px 0;padding:12px"><div style="display:flex;align-items:center;gap:10px">${avatarMarkup(p.avatar_data,'✦',true)}<div><strong>${esc(p.title)}</strong><p class="person-sub">${esc(p.category)}</p></div></div><button type="button" class="btn-pill-outline" onclick="editMyProject(${i})">Редактировать</button><button type="button" class="btn-pill-outline" onclick="myProjectRequests(${i})">Заявки</button><button type="button" class="btn-pill-outline" onclick="askDeleteMyProject(${i})">Удалить</button></div>`).join('');
+  return state.myProjects.map((p,i)=>`<div class="card" style="margin:10px 0;padding:12px"><div style="display:flex;align-items:center;gap:10px">${avatarMarkup(p.avatar_data,'✦',true)}<div><strong>${esc(p.title)}</strong><p class="person-sub">${esc(p.category)}</p></div></div><button type="button" class="btn-pill-primary" onclick="openTeamMatch(${i})">Подбор команды</button><button type="button" class="btn-pill-outline" onclick="editMyProject(${i})">Редактировать</button><button type="button" class="btn-pill-outline" onclick="myProjectRequests(${i})">Заявки</button><button type="button" class="btn-pill-outline" onclick="askDeleteMyProject(${i})">Удалить</button></div>`).join('');
 }
 async function loadMyProjects(more = false) {
   if (state.myProjectsLoading) return;
@@ -1190,15 +1251,48 @@ function myProjectRequests(index) {
 }
 function editMyProject(index) {
   const p=state.myProjects[index];if(!p)return;
-  modal('Редактировать проект', `<form class="form-blank" onsubmit="saveMyProject(event,${index})">${avatarInput('project-edit-avatar',p.avatar_data,true)}<div class="field-group"><label class="field-label">Название *</label><input name="title" class="field-input" required maxlength="70" value="${esc(p.title)}"></div><div class="field-group"><label class="field-label">Направление</label><select name="category" class="field-select">${['Язык и культура','Экология','Предпринимательство','IT','Образование','Другое'].map(x=>`<option ${x===p.category?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field-group"><label class="field-label">Описание *</label><textarea name="desc" class="field-textarea" required maxlength="400">${esc(p.description)}</textarea></div><div class="field-group"><label class="field-label">Город</label><input name="city" class="field-input" maxlength="50" value="${esc(p.city||'')}"></div><div class="field-group"><label class="field-label">Страна</label><input class="field-input" name="country" maxlength="60" value="${esc(p.country||'')}" placeholder="Введи страну"></div><p class="demo-note">Название, описание, город и картинка видны другим пользователям EIGE.</p><button type="submit" class="btn-pill-primary">Сохранить изменения</button><p id="edit-project-status" role="status" class="person-sub"></p></form>`);
+  modal('Редактировать проект', `<form class="form-blank" onsubmit="saveMyProject(event,${index})">${avatarInput('project-edit-avatar',p.avatar_data,true)}<div class="field-group"><label class="field-label">Название *</label><input name="title" class="field-input" required maxlength="70" value="${esc(p.title)}"></div><div class="field-group"><label class="field-label">Направление</label><select name="category" class="field-select">${['Язык и культура','Экология','Предпринимательство','IT','Образование','Другое'].map(x=>`<option ${x===p.category?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field-group"><label class="field-label">Описание *</label><textarea name="desc" class="field-textarea" required maxlength="400">${esc(p.description)}</textarea></div><div class="field-group"><label class="field-label">Город</label><input name="city" class="field-input" maxlength="50" value="${esc(p.city||'')}"></div><div class="field-group"><label class="field-label">Страна</label><input class="field-input" name="country" maxlength="60" value="${esc(p.country||'')}" placeholder="Введи страну"></div><div class="field-group"><label class="field-label">Кто нужен в команду</label>${skillPicker('project-edit-skills', p.wanted_skills, 'wanted_skills')}</div><p class="demo-note">Название, описание, город, нужные навыки и картинка видны другим пользователям EIGE.</p><button type="submit" class="btn-pill-primary">Сохранить изменения</button><p id="edit-project-status" role="status" class="person-sub"></p></form>`);
 }
 async function saveMyProject(e,index) {
   e.preventDefault(); const p=state.myProjects[index],form=e.target,status=document.getElementById('edit-project-status'); if(!p || !status || form.dataset.busy==='1')return;
   form.dataset.busy='1'; const button=form.querySelector('button[type=submit]');if(button)button.disabled=true;
   const v=Object.fromEntries(new FormData(form)); status.textContent='Сохраняем…';
-  try {await communityRequest('edit_project',{project_id:p.id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data}});closeModal();state.projectsLoaded=false;state.myProjectsLoaded=false;render();toast('Проект обновлён');}
+  try {await communityRequest('edit_project',{project_id:p.id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data,wanted_skills:parseSkills(v.wanted_skills)}});closeModal();state.projectsLoaded=false;state.myProjectsLoaded=false;render();toast('Проект обновлён');}
   catch(e){status.textContent=e.message || 'Не удалось сохранить проект.';}
   finally{form.dataset.busy='0';if(button)button.disabled=false;}
+}
+// Team matching: only the owner searches, and only published profiles are returned by the server.
+let teamMatch = null;
+function openTeamMatch(index) {
+  const p = state.myProjects[index]; if (!p) return;
+  if (!teamMatch || teamMatch.projectId !== p.id) teamMatch = {projectId:p.id, index, skills:parseSkills(p.wanted_skills), results:null, error:''};
+  teamMatch.index = index;
+  modal('Подбор команды', `<p class="person-sub">${esc(p.title)}</p><p class="person-sub">Отметь, кто нужен проекту. EIGE покажет участников с опубликованной анкетой, у которых есть эти навыки.</p>${skillPicker('team-match-skills', teamMatch.skills, 'skills')}<button type="button" class="btn-pill-primary" onclick="runTeamMatch()">Найти участников</button><p id="team-match-status" role="status" class="person-sub">${esc(teamMatch.error)}</p><div id="team-match-results">${teamMatchResults()}</div><p class="demo-note">Показываются только анкеты с разрешённым показом. Контакт возможен лишь если участник открыл свой Telegram.</p>`);
+}
+function relationLabel(r) { return r === 'approved' ? 'Уже в команде' : r === 'pending' ? 'Заявка ждёт решения' : r === 'rejected' ? 'Заявка была отклонена' : ''; }
+function teamMatchResults() {
+  if (!teamMatch || !teamMatch.results) return '';
+  if (!teamMatch.results.length) return '<div class="empty">Пока никто с такими навыками не опубликовал анкету. Попробуй другие навыки или зайди позже.</div>';
+  return teamMatch.results.map((p,i) => `<div class="card" style="margin:10px 0;padding:12px"><div style="display:flex;align-items:center;gap:10px">${avatarMarkup(p.avatar_data, initials(p.name))}<div style="min-width:0"><strong>${esc(p.name)}</strong><p class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</p></div></div><p class="match-score">Совпало ${p.matched.length} из ${p.total}${p.relation ? ' · ' + relationLabel(p.relation) : ''}</p><div class="tags">${skillTags(p.skills, p.matched)}</div><button type="button" class="btn-pill-outline" onclick="openMatchPerson(${i})">Открыть анкету</button></div>`).join('');
+}
+async function runTeamMatch() {
+  const hidden = document.getElementById('team-match-skills-value'), status = document.getElementById('team-match-status'), box = document.getElementById('team-match-results');
+  if (!teamMatch || !hidden || !status || !box || teamMatch.loading) return;
+  teamMatch.skills = parseSkills(hidden.value);
+  if (!teamMatch.skills.length) { status.textContent = 'Сначала отметь хотя бы один навык.'; return; }
+  teamMatch.loading = true; status.textContent = 'Ищем участников…'; teamMatch.error = '';
+  try {
+    const data = await communityRequest('match_team', {project_id:teamMatch.projectId, skills:teamMatch.skills});
+    teamMatch.results = (Array.isArray(data.matches) ? data.matches : []).filter(x => x && /^[0-9a-f-]{36}$/i.test(x.id || '')).map(x => ({...x, skills:parseSkills(x.skills), matched:parseSkills(x.matched), total:Number.isSafeInteger(x.total) ? x.total : teamMatch.skills.length}));
+    status.textContent = teamMatch.results.length ? 'Найдено: ' + teamMatch.results.length : '';
+    box.innerHTML = teamMatchResults();
+  } catch(e) { teamMatch.error = e.message || 'Не удалось выполнить подбор.'; status.textContent = teamMatch.error; }
+  finally { teamMatch.loading = false; }
+}
+function openMatchPerson(i) {
+  const p = teamMatch && teamMatch.results ? teamMatch.results[i] : null; if (!p) return;
+  state.openContactUsername = p.telegram_username || '';
+  modal('Профиль участника', `<button type="button" class="btn-pill-outline" onclick="openTeamMatch(${teamMatch.index})">← К подбору</button><div class="person-top" style="margin-top:12px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}${p.country ? ' · '+esc(p.country) : ''}</p><div class="tags">${tags(p.interests)}</div><p class="skill-note">Навыки · совпало ${p.matched.length} из ${p.total}</p><div class="tags">${skillTags(p.skills, p.matched)}</div>${p.relation ? `<p class="person-sub">${esc(relationLabel(p.relation))}.</p>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram. Он сам может подать заявку в твой проект.</p>'}`);
 }
 function askDeleteMyProject(index) {
   const p=state.myProjects[index];if(!p)return;
@@ -1214,7 +1308,7 @@ async function deleteMyProject(index) {
 function profile() {
   const p = state.profile;
   return `<div class="wrap"><div class="eyebrow">ТВОЙ ПРОФИЛЬ</div><h1 class="screen-title" style="text-align:left;margin-top:6px">Личный кабинет</h1>
-  ${p ? `<div class="profile-stat-box"><div style="display:flex;justify-content:center;margin:0 auto 12px">${avatarMarkup(p.avatar_data, initials(p.name))}</div><h2 style="font-family:var(--font-serif);margin:0;font-size:20px;color:var(--green-deep)">${esc(p.name)}</h2><p style="color:var(--ink-muted);font-size:12px">${esc(roleLabel(p))}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags" style="justify-content:center">${tags(p.interests || p.profession)}</div><button class="btn-pill-primary" onclick="go('register')">Редактировать анкету</button></div>` : `<div class="profile-stat-box"><h2>Анкета ещё не заполнена</h2><button class="btn-pill-primary" onclick="go('register')">Заполнить анкету</button></div>`}
+  ${p ? `<div class="profile-stat-box"><div style="display:flex;justify-content:center;margin:0 auto 12px">${avatarMarkup(p.avatar_data, initials(p.name))}</div><h2 style="font-family:var(--font-serif);margin:0;font-size:20px;color:var(--green-deep)">${esc(p.name)}</h2><p style="color:var(--ink-muted);font-size:12px">${esc(roleLabel(p))}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags" style="justify-content:center">${tags(p.interests || p.profession)}</div>${parseSkills(p.skills).length ? `<div class="tags" style="justify-content:center;margin-top:6px">${skillTags(p.skills)}</div>` : '<p class="skill-note">Добавь навыки в анкете, чтобы тебя находили в подборе команды.</p>'}<button class="btn-pill-primary" onclick="go('register')">Редактировать анкету</button></div>` : `<div class="profile-stat-box"><h2>Анкета ещё не заполнена</h2><button class="btn-pill-primary" onclick="go('register')">Заполнить анкету</button></div>`}
   <div class="card"><strong>О себе</strong><p class="person-sub">${esc(p?.about || 'Пока ничего не добавлено.')}</p><strong>Цель</strong><p class="person-sub">${esc(p?.goal || 'Пока не указана.')}</p></div>
   <div class="card"><strong>Мои проекты</strong><p class="person-sub">Управляй своими проектами. Новый проект можно создать в разделе «Проекты».</p><div id="my-projects">${myProjectsMarkup()}</div>${state.myProjectsMore ? '<button type="button" class="btn-pill-outline" onclick="loadMyProjects(true)">Загрузить ещё</button>' : ''}<p id="my-projects-status" role="status" class="person-sub">${esc(state.myProjectsError)}</p></div>
   <div class="card"><strong>Мой статус</strong><p class="person-sub">Виден участникам только в опубликованной анкете.</p><select id="availability-select" class="field-select">${['Не указан','Готов помочь','Работаю над проектом','Ищу команду','Занят'].map(x => `<option ${x === (p?.availability || 'Не указан') ? 'selected' : ''}>${x}</option>`).join('')}</select><button type="button" class="btn-pill-outline" onclick="saveAvailability()">Сохранить статус</button><p id="availability-status" role="status" class="person-sub"></p></div>
@@ -1296,6 +1390,7 @@ async function saveProfile(e) {
   form.dataset.busy = '1';
   const button = form.querySelector('button[type=submit]'); if (button) button.disabled = true;
   const data = Object.assign({}, state.profile || {}, state.profileDraft, Object.fromEntries(new FormData(form)));
+  data.skills = parseSkills(data.skills);
   const status = document.getElementById('profile-save-status');
   if (status) status.textContent = 'Сохраняем анкету в базу…';
   try {
@@ -1352,6 +1447,7 @@ function openProjectForm() {
         <label class="field-label">Город</label>
         <input class="field-input" name="city" maxlength="50" list="project-cities" placeholder="Выбери или введи город"><datalist id="project-cities"><option value="Якутск"><option value="Нерюнгри"><option value="Мирный"><option value="Другой"></datalist>
       </div><div class="field-group"><label class="field-label">Страна</label><input class="field-input" name="country" maxlength="60" list="project-countries" placeholder="Выбери или введи страну"><datalist id="project-countries"><option value="Россия"><option value="Казахстан"><option value="Беларусь"><option value="Другая"></datalist></div>
+      <div class="field-group"><label class="field-label">Кто нужен в команду</label><p class="skill-note" style="margin:0 12px 6px">Навыки нужны для подбора участников. Их можно изменить позже в профиле.</p>${skillPicker('project-create-skills', [], 'wanted_skills')}</div>
       <button class="btn-pill-primary" type="submit">Создать проект</button>
       <p class="demo-note">Проект будет виден другим пользователям EIGE. Не указывай личные данные или контакты. Используй только тестовые данные.</p><p id="project-form-status" role="status" style="font-size:12px;color:var(--ink-muted)"></p>
     </form>
@@ -1369,7 +1465,7 @@ async function saveProject(e) {
   const status = document.getElementById('project-form-status');
   if (status) status.textContent = 'Создаём проект…';
   try {
-    await communityRequest('create_project', {request_id:v.request_id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data}});
+    await communityRequest('create_project', {request_id:v.request_id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data,wanted_skills:parseSkills(v.wanted_skills)}});
     state.projectFilter = 'Все'; state.search = ''; state.projectsLoaded = false; state.myProjectsLoaded = false;
     closeModal(); go('projects'); toast('Проект создан в общей базе');
   } catch(e) { if (status) status.textContent = e.message || 'Не удалось создать проект.'; }
@@ -1399,7 +1495,7 @@ function personDetail(id) {
 
 function projectDetail(index) {
   const p = state.realProjects[index]; if (!p) return;
-  modal('О проекте', `<div style="display:flex;align-items:center;gap:12px;margin-top:14px">${avatarMarkup(p.avatar_data,'✦',true)}<div><h2 style="font-family:var(--font-serif);margin:0;font-size:18px;color:var(--green-deep)">${esc(p.title)}</h2><span style="font-size:11px;color:var(--ink-muted)">${esc(p.category)}${p.city ? ' · '+esc(p.city) : ''}${p.country ? ' · '+esc(p.country) : ''}</span></div></div><p style="color:var(--ink-muted);font-size:12.5px;line-height:1.6;margin:14px 0 18px">${esc(p.description)}</p><div class="ref-creator"><strong>Создатель проекта</strong><p class="person-sub">${p.is_owner ? 'Вы' : p.creator ? esc(p.creator.name) + ' · ' + esc(roleLabel(p.creator)) + (p.creator.profession ? ' · ' + esc(p.creator.profession) : '') : 'Создатель не опубликовал анкету'}</p></div>${p.is_owner ? `<button class="btn-pill-primary" onclick="viewProjectRequests(${index})">Заявки участников</button>` : p.my_request_status ? `<p>Ваша заявка: <strong>${esc(requestStatus(p.my_request_status))}</strong></p>${p.my_request_status === 'pending' ? `<button class="btn-pill-outline" onclick="withdrawRequest(${index})">Отменить заявку</button>` : p.my_request_status === 'approved' ? `<button class="btn-pill-outline danger-btn" onclick="askLeaveProject(${index})">Выйти из команды</button>` : ''}` : `<p class="demo-note">Создатель проекта увидит имя и статус из твоей анкеты.</p><button class="btn-pill-primary" onclick="applyProject(${index})">Отправить заявку</button>`}${p.is_owner || p.my_request_status === 'approved' ? `<button type="button" class="btn-pill-outline" onclick="openProjectChat(${index})">Чат команды</button>` : ''}${!p.is_owner ? `<button type="button" class="btn-pill-outline" onclick="askReport('project',${index})">Пожаловаться на проект</button>` : ''}<p id="project-detail-status" role="status" class="demo-note"></p>`);
+  modal('О проекте', `<div style="display:flex;align-items:center;gap:12px;margin-top:14px">${avatarMarkup(p.avatar_data,'✦',true)}<div><h2 style="font-family:var(--font-serif);margin:0;font-size:18px;color:var(--green-deep)">${esc(p.title)}</h2><span style="font-size:11px;color:var(--ink-muted)">${esc(p.category)}${p.city ? ' · '+esc(p.city) : ''}${p.country ? ' · '+esc(p.country) : ''}</span></div></div><p style="color:var(--ink-muted);font-size:12.5px;line-height:1.6;margin:14px 0 18px">${esc(p.description)}</p>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags" style="margin-bottom:14px">${skillTags(p.wanted_skills)}</div>` : ''}<div class="ref-creator"><strong>Создатель проекта</strong><p class="person-sub">${p.is_owner ? 'Вы' : p.creator ? esc(p.creator.name) + ' · ' + esc(roleLabel(p.creator)) + (p.creator.profession ? ' · ' + esc(p.creator.profession) : '') : 'Создатель не опубликовал анкету'}</p></div>${p.is_owner ? `<button class="btn-pill-primary" onclick="viewProjectRequests(${index})">Заявки участников</button>` : p.my_request_status ? `<p>Ваша заявка: <strong>${esc(requestStatus(p.my_request_status))}</strong></p>${p.my_request_status === 'pending' ? `<button class="btn-pill-outline" onclick="withdrawRequest(${index})">Отменить заявку</button>` : p.my_request_status === 'approved' ? `<button class="btn-pill-outline danger-btn" onclick="askLeaveProject(${index})">Выйти из команды</button>` : ''}` : `<p class="demo-note">Создатель проекта увидит имя и статус из твоей анкеты.</p><button class="btn-pill-primary" onclick="applyProject(${index})">Отправить заявку</button>`}${p.is_owner || p.my_request_status === 'approved' ? `<button type="button" class="btn-pill-outline" onclick="openProjectChat(${index})">Чат команды</button>` : ''}${!p.is_owner ? `<button type="button" class="btn-pill-outline" onclick="askReport('project',${index})">Пожаловаться на проект</button>` : ''}<p id="project-detail-status" role="status" class="demo-note"></p>`);
 }
 
 async function loadProjects(more = false) {
@@ -1767,6 +1863,7 @@ async function communityRequest(action, extra, options) {
     if (data.error === 'Reply target not found') throw new Error('Сообщение, на которое ты отвечаешь, уже удалено. Отмени ответ и отправь снова.');
     if (data.error === 'Invalid group link') throw new Error('Не удалось сохранить ссылку на группу Telegram.');
     if (data.error === 'Reaction limit') throw new Error('Слишком много реакций. Подожди немного.');
+    if (data.error === 'Invalid skills') throw new Error('Проверь навыки: до 20 штук, каждый до 30 символов, только буквы и цифры.');
     if (data.error === 'Message not found') throw new Error('Сообщение уже удалено.');
     if (data.error === 'Chat limit') throw new Error('Не больше пяти сообщений в минуту. Подожди немного.');
     if (data.error === 'Chat blocked') throw new Error('Администратор ограничил тебе доступ к чатам.');
@@ -1841,7 +1938,7 @@ function openRealPerson(index) {
   const p = state.communityProfiles[index];
   if (!p) return;
   state.openContactUsername = p.telegram_username || '';
-  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',${index})">Пожаловаться на анкету</button>`);
+  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${parseSkills(p.skills).length ? `<p class="skill-note">Навыки</p><div class="tags">${skillTags(p.skills)}</div>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',${index})">Пожаловаться на анкету</button>`);
 }
 
 function askReport(kind,index) {
@@ -2048,7 +2145,8 @@ async function refreshCommunityQuietly() {
 Object.assign(window, {
   state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
-  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests
+  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests,
+  parseSkills, skillTags, toggleSkill, addCustomSkill, openTeamMatch, runTeamMatch, openMatchPerson, peopleResults, projectResults
 });
 
 try {
