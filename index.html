@@ -1548,7 +1548,7 @@ async function refreshProjectChat() {
     if(document.getElementById('chat-status')===status){
       const denied=['Администратор ограничил тебе доступ к чатам.','Доступен только создателю и принятым участникам проекта.','Чат пока отключён: требуется настройка безопасности и модерации.'].includes(e?.message);
       if(denied&&activeChat===chat){activeChat=null;activeChatMessages=[];chatMessagesSignature=null;chatReply=null;activeGroupUrl=null;list.innerHTML='';renderReplyPreview();const group=document.getElementById('chat-group');if(group)group.innerHTML='<p class="person-sub">Раздел недоступен.</p>';const prefs=document.getElementById('chat-preferences');if(prefs)prefs.innerHTML='<p class="person-sub">Настройки недоступны.</p>';}
-      status.textContent=e?.name==='AbortError'?'Сервер долго не отвечает. Проверь интернет и обнови чат.':(e.message || 'Не удалось загрузить чат.');
+      status.textContent=(e?.timedOut||e?.name==='AbortError')?'Сервер долго не отвечает. Проверь интернет и обнови чат.':(e.message || 'Не удалось загрузить чат.');
     }
   } finally {if(chatLoading===list)chatLoading=null;}
 }
@@ -1647,7 +1647,7 @@ async function saveChatGroup(){
    input.value=url;status.textContent=url?'Ссылка сохранена. Участники команды могут открыть группу.':'Ссылка удалена из EIGE.';
  }catch(e){
    if(activeChat!==chat||document.getElementById('chat-group-url')!==input)return;
-   status.textContent=(e?.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)?'Не удалось подтвердить сохранение. Проверь интернет и заново открой чат, чтобы увидеть, сохранилась ли ссылка.':(e.message||'Не удалось сохранить ссылку. Попробуй снова.');
+   status.textContent=(e?.network||e?.name==='AbortError'||e instanceof TypeError||e instanceof SyntaxError)?'Не удалось подтвердить сохранение. Проверь интернет и заново открой чат, чтобы увидеть, сохранилась ли ссылка.':(e.message||'Не удалось сохранить ссылку. Попробуй снова.');
  }finally{
    if(activeChat===chat&&document.getElementById('chat-group-url')===input){input.disabled=false;if(button){button.disabled=false;button.textContent='Сохранить ссылку';}}
  }
@@ -1850,15 +1850,28 @@ async function syncProfile(action) {
   }
 }
 
+// Network failures are marked so that callers can say "not confirmed" instead of "failed".
+function networkError(message, timedOut) { const err = new Error(message); err.name = 'NetworkError'; err.network = true; err.timedOut = !!timedOut; return err; }
 async function communityRequest(action, extra, options) {
   const initData = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData;
   if (!initData) throw new Error('Открой EIGE через кнопку бота в Telegram.');
-  const res = await fetch('https://stmczoshulmqhjxlkest.supabase.co/functions/v1/clever-service', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({initData, action}, extra || {})),
-    ...(options?.signal ? {signal:options.signal} : {})
-  });
-  const data = await res.json();
+  // Every request gets a time limit so the screen never hangs on "Загружаем…".
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), 20000) : null;
+  if (options?.signal && controller) options.signal.addEventListener('abort', () => controller.abort(), {once:true});
+  let res, data;
+  try {
+    res = await fetch('https://stmczoshulmqhjxlkest.supabase.co/functions/v1/clever-service', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({initData, action}, extra || {})),
+      ...(controller ? {signal:controller.signal} : options?.signal ? {signal:options.signal} : {})
+    });
+  } catch (e) {
+    if (timer) clearTimeout(timer);
+    throw networkError(e && e.name === 'AbortError' ? 'Сервер долго не отвечает. Проверь интернет и попробуй ещё раз.' : 'Нет связи с сервером. Проверь интернет.', e && e.name === 'AbortError');
+  }
+  if (timer) clearTimeout(timer);
+  try { data = await res.json(); } catch (_) { throw networkError('Сервер временно недоступен (' + res.status + '). Попробуй через минуту.', false); }
   if (!res.ok || !data.ok) {
     if (data.error === 'Reply target not found') throw new Error('Сообщение, на которое ты отвечаешь, уже удалено. Отмени ответ и отправь снова.');
     if (data.error === 'Invalid group link') throw new Error('Не удалось сохранить ссылку на группу Telegram.');
@@ -1938,11 +1951,11 @@ function openRealPerson(index) {
   const p = state.communityProfiles[index];
   if (!p) return;
   state.openContactUsername = p.telegram_username || '';
-  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${parseSkills(p.skills).length ? `<p class="skill-note">Навыки</p><div class="tags">${skillTags(p.skills)}</div>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',${index})">Пожаловаться на анкету</button>`);
+  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${parseSkills(p.skills).length ? `<p class="skill-note">Навыки</p><div class="tags">${skillTags(p.skills)}</div>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',\'${esc(p.id)}\')">Пожаловаться на анкету</button>`);
 }
 
 function askReport(kind,index) {
-  const p=kind==='profile' ? state.communityProfiles[index] : kind==='project' ? state.realProjects[index] : null;
+  const p=kind==='profile' ? (typeof index==='string' ? state.communityProfiles.find(x=>x.id===index) : state.communityProfiles[index]) : kind==='project' ? state.realProjects[index] : null;
   if(!p || (kind==='project' && p.is_owner) || !/^[0-9a-f-]{36}$/i.test(p.id || ''))return;
   reportTarget={kind,id:p.id};
   modal('Пожаловаться', `<p class="person-sub">Жалоба на: ${esc(kind==='profile'?p.name:p.title)}. Выбери причину. Не отправляй личные данные — свободного поля здесь нет.</p><label class="field-label" for="report-reason">Причина</label><select id="report-reason" class="field-select"><option value="unsafe">Угрозы или небезопасное поведение</option><option value="inappropriate">Неподходящее содержимое</option><option value="spam">Спам или реклама</option><option value="other">Другое</option></select><p class="person-sub">Жалоба попадёт администраторам для ручной проверки, не мгновенно. При непосредственной угрозе обратись к доверенному взрослому или в экстренные службы.</p><button type="button" class="btn-pill-primary" onclick="submitReport()">Отправить жалобу</button><button type="button" class="btn-pill-outline" onclick="closeModal()">Отмена</button><p id="report-status" class="person-sub" role="status"></p>`);
@@ -2118,7 +2131,7 @@ async function startApp() {
 
 // Refresh already loaded pages without rebuilding the search field or losing focus.
 async function refreshCommunityQuietly() {
-  if (!state.registered || state.page !== 'people' || !state.communityLoaded || state.communityLoading || document.visibilityState === 'hidden') return;
+  if (!state.registered || state.page !== 'people' || !state.communityLoaded || state.communityLoading || document.visibilityState === 'hidden' || document.querySelector('.modal-bg')) return;
   state.communityLoading=true;
   try {
     const wanted=Math.max(100,state.communityProfiles.length);
@@ -2155,7 +2168,7 @@ try {
 } catch(e) {}
 
 render();
-setInterval(refreshCommunityQuietly, 30000);
+setInterval(refreshCommunityQuietly, 90000);
 setInterval(() => { if (document.visibilityState !== 'hidden' && document.getElementById('chat-list') && !chatMenuMessage && !chatReacting) refreshProjectChat(); }, 8000);
 setTimeout(() => { if (state.launchState === 'loading' && !state.launchBusy) startApp(); }, 8000);
 
