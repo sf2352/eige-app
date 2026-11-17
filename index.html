@@ -861,14 +861,45 @@ function roleLabel(p) {
   return role;
 }
 
-function avatarMarkup(data, fallback, project = false) {
+function avatarMarkup(data, fallback, project = false, key = '') {
   const valid = typeof data === 'string' && data.length <= 30000 && /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(data);
-  if (valid) return `<img class="${project ? 'project-icon' : 'avatar'}" style="object-fit:cover;display:block" src="${data}" alt="Аватар">`;
-  return `<div class="${project ? 'project-icon' : 'avatar'}">${esc(fallback)}</div>`;
+  const slot = key ? ` data-avatar="${esc(key)}"` : '';
+  if (valid) return `<img class="${project ? 'project-icon' : 'avatar'}"${slot} style="object-fit:cover;display:block" src="${data}" alt="Аватар">`;
+  return `<div class="${project ? 'project-icon' : 'avatar'}"${slot}>${esc(fallback)}</div>`;
+}
+
+// Lists arrive without pictures (fast); pictures are fetched once per id and dropped into the rows already on screen.
+const avatarCache = new Map();
+let avatarsLoading = false;
+function cachedAvatar(p, kind) { return p.avatar_data || avatarCache.get(kind + ':' + p.id) || null; }
+async function loadAvatars() {
+  if (avatarsLoading) return;
+  const profiles = state.communityProfiles.filter(p => p.has_avatar && !p.avatar_data && !avatarCache.has('p:' + p.id)).map(p => p.id).slice(0, 100);
+  const projects = state.realProjects.filter(p => p.has_avatar && !p.avatar_data && !avatarCache.has('j:' + p.id)).map(p => p.id).slice(0, 100);
+  if (!profiles.length && !projects.length) return;
+  avatarsLoading = true; let fetched = false;
+  try {
+    const data = await communityRequest('avatars', {profile_ids:profiles, project_ids:projects});
+    fetched = true;
+    const got = {p:data.profiles || {}, j:data.projects || {}};
+    for (const id of profiles) avatarCache.set('p:' + id, typeof got.p[id] === 'string' ? got.p[id] : null);
+    for (const id of projects) avatarCache.set('j:' + id, typeof got.j[id] === 'string' ? got.j[id] : null);
+    for (const p of state.communityProfiles) if (!p.avatar_data && avatarCache.get('p:' + p.id)) p.avatar_data = avatarCache.get('p:' + p.id);
+    for (const p of state.realProjects) if (!p.avatar_data && avatarCache.get('j:' + p.id)) p.avatar_data = avatarCache.get('j:' + p.id);
+    if (typeof document.querySelectorAll === 'function') {
+      for (const el of document.querySelectorAll('[data-avatar]')) {
+        const key = el.getAttribute('data-avatar'), data = avatarCache.get(key);
+        if (!data || el.tagName === 'IMG') continue;
+        const img = document.createElement('img'); img.className = el.className; img.style.cssText = 'object-fit:cover;display:block'; img.src = data; img.alt = 'Аватар'; img.setAttribute('data-avatar', key);
+        el.replaceWith(img);
+      }
+    }
+  } catch (_) { /* Pictures are optional; the list stays usable with initials. */ }
+  finally { avatarsLoading = false; if (fetched && profiles.length + projects.length >= 100) loadAvatars(); }
 }
 
 function avatarInput(id, data, project = false) {
-  return `<div class="field-group"><label class="field-label">${project ? 'Аватар проекта' : 'Аватар профиля'}</label><div id="${id}-preview" style="margin:8px 12px">${avatarMarkup(data, project ? '✦' : '✳', project)}</div><input type="hidden" id="${id}-data" name="avatar_data" value="${esc(data || '')}"><input class="field-input" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadAvatar(this,'${id}')"><button type="button" class="btn-pill-outline" onclick="clearAvatar('${id}',${project})">Убрать картинку</button><p id="${id}-status" class="demo-note">${project ? 'Картинка проекта будет видна другим участникам.' : 'Картинка будет видна другим только если разрешить её показ в профиле.'} Используй тестовые изображения.</p></div>`;
+  return `<div class="field-group"><label class="field-label">${project ? 'Аватар проекта' : 'Аватар профиля'}</label><div id="${id}-preview" style="margin:8px 12px">${avatarMarkup(data, project ? '✦' : '✳', project)}</div><input type="hidden" id="${id}-data" name="avatar_data" value="${esc(data || '')}"><input class="field-input" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadAvatar(this,'${id}')"><button type="button" class="btn-pill-outline" onclick="clearAvatar('${id}',${project})">Убрать картинку</button><p id="${id}-status" class="demo-note">${project ? 'Картинка проекта будет видна другим участникам.' : 'Картинка будет видна другим только если разрешить её показ в профиле.'}</p></div>`;
 }
 
 async function uploadAvatar(input,id) {
@@ -1131,7 +1162,7 @@ function people() {
       <p id="community-status" role="status" style="font-size:12px;color:var(--ink-muted)">${esc(state.communityError)}</p>
       <div id="results">${peopleResults()}</div>
       <button id="community-more" type="button" class="btn-pill-outline" onclick="loadCommunity(true)" style="display:${state.communityMore?'':'none'}">Загрузить ещё</button>
-      <p class="demo-note">Ссылка на Telegram показывается только с согласия участника. Используй тестовые данные.</p>
+      <p class="demo-note">Ссылка на Telegram показывается только с согласия участника.</p>
     </div>
   `;
 }
@@ -1144,7 +1175,7 @@ function peopleResults() {
     return matchesRole && [p.name,p.role,p.profession,p.interests,p.availability,parseSkills(p.skills).join(' ')].join(' ').toLowerCase().includes(q);
   });
   if (!matches.length) return '<div class="empty">Пока нет подходящих опубликованных анкет.</div>';
-  return matches.map(({p,index}) => `<button type="button" class="people-row" onclick="openRealPerson(${index})">${avatarMarkup(p.avatar_data,initials(p.name))}<span class="people-info"><span class="person-name">${esc(p.name)}</span><span class="person-sub" style="display:block">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}${p.city ? ' · ' + esc(p.city) : ''}${p.country ? ' · ' + esc(p.country) : ''}</span><span class="tags">${tags(p.interests)}${skillTags(p.skills)}</span></span><span class="arrow" aria-hidden="true">›</span></button>`).join('');
+  return matches.map(({p,index}) => `<button type="button" class="people-row" onclick="openRealPerson(${index})">${avatarMarkup(cachedAvatar(p,'p'),initials(p.name),false,'p:'+p.id)}<span class="people-info"><span class="person-name">${esc(p.name)}</span><span class="person-sub" style="display:block">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}${p.city ? ' · ' + esc(p.city) : ''}${p.country ? ' · ' + esc(p.country) : ''}</span><span class="tags">${tags(p.interests)}${skillTags(p.skills)}</span></span><span class="arrow" aria-hidden="true">›</span></button>`).join('');
 }
 
 function filterPeople(f) {
@@ -1222,7 +1253,7 @@ function projects() {
       <div id="results">${projectResults()}</div>
       <p id="project-load-status" role="status" style="color:var(--ink-muted);font-size:12px">${esc(state.projectError)}</p>
       ${state.projectsMore ? '<button type="button" class="btn-pill-outline" onclick="loadProjects(true)">Загрузить ещё</button>' : ''}
-      <p class="demo-note">Проекты видны пользователям Telegram, открывшим EIGE. Старая демоверсия проектов с устройства сюда не переносится. Только тестовые данные.</p>
+      <p class="demo-note">Проекты видны пользователям Telegram, открывшим EIGE.</p>
     </div>
   `;
 }
@@ -1232,7 +1263,7 @@ function projectResults() {
   const q = state.search.toLowerCase().trim();
   const items = state.realProjects.map((p,index)=>({p,index})).filter(({p}) => (state.projectFilter === 'Все' || p.category === state.projectFilter) && [p.title,p.category,p.description,p.city,parseSkills(p.wanted_skills).join(' ')].join(' ').toLowerCase().includes(q));
   if (!items.length) return '<div class="empty">Проектов пока нет или они не найдены.</div>';
-  return items.map(({p,index}) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">${avatarMarkup(p.avatar_data,'✦',true)}<div><div class="project-title">${esc(p.title)}</div><div class="person-sub">${esc(p.category)}${p.city?' · '+esc(p.city):''}${p.country?' · '+esc(p.country):''}</div></div></div><div class="project-text">${esc(p.description)}</div>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags">${skillTags(p.wanted_skills)}</div>` : ''}<div class="card-footer"><span class="person-sub">${p.is_owner ? 'Мой проект' : p.my_request_status ? 'Заявка: '+esc(requestStatus(p.my_request_status)) : 'Открыт для заявок'}</span><button type="button" class="btn-card-action" onclick="projectDetail(${index})">Подробнее →</button></div></div>`).join('');
+  return items.map(({p,index}) => `<div class="card"><div style="display:flex;align-items:center;gap:12px">${avatarMarkup(cachedAvatar(p,'j'),'✦',true,'j:'+p.id)}<div><div class="project-title">${esc(p.title)}</div><div class="person-sub">${esc(p.category)}${p.city?' · '+esc(p.city):''}${p.country?' · '+esc(p.country):''}</div></div></div><div class="project-text">${esc(p.description)}</div>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags">${skillTags(p.wanted_skills)}</div>` : ''}<div class="card-footer"><span class="person-sub">${p.is_owner ? 'Мой проект' : p.my_request_status ? 'Заявка: '+esc(requestStatus(p.my_request_status)) : 'Открыт для заявок'}</span><button type="button" class="btn-card-action" onclick="projectDetail(${index})">Подробнее →</button></div></div>`).join('');
 }
 function requestStatus(status) { return ({pending:'на рассмотрении',approved:'принята',rejected:'отклонена'})[status] || 'неизвестно'; }
 
@@ -1274,7 +1305,7 @@ async function saveMyProject(e,index) {
   e.preventDefault(); const p=state.myProjects[index],form=e.target,status=document.getElementById('edit-project-status'); if(!p || !status || form.dataset.busy==='1')return;
   form.dataset.busy='1'; const button=form.querySelector('button[type=submit]');if(button)button.disabled=true;
   const v=Object.fromEntries(new FormData(form)); status.textContent='Сохраняем…';
-  try {await communityRequest('edit_project',{project_id:p.id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data,wanted_skills:parseSkills(v.wanted_skills)}});closeModal();state.projectsLoaded=false;state.myProjectsLoaded=false;render();toast('Проект обновлён');}
+  try {await communityRequest('edit_project',{project_id:p.id,project:{title:v.title,category:v.category,description:v.desc,city:v.city,country:v.country,avatar_data:v.avatar_data,wanted_skills:parseSkills(v.wanted_skills)}});avatarCache.delete('j:'+p.id);closeModal();state.projectsLoaded=false;state.myProjectsLoaded=false;render();toast('Проект обновлён');}
   catch(e){status.textContent=e.message || 'Не удалось сохранить проект.';}
   finally{form.dataset.busy='0';if(button)button.disabled=false;}
 }
@@ -1333,6 +1364,12 @@ function profile() {
   <p class="demo-note">Изменения анкеты отправляются в базу при нажатии «Сохранить анкету».</p></div>`;
 }
 
+// Hint only: the server re-checks the signed Telegram data when the setting is saved.
+function telegramUsernameMissing() {
+  const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  if (!u || typeof u !== 'object') return false;
+  return !(typeof u.username === 'string' && /^[A-Za-z0-9_]{5,32}$/.test(u.username));
+}
 function settings() {
   const p = state.profile;
   return `<div class="wrap"><div class="eyebrow">ТВОЙ ПРОФИЛЬ</div><h1 class="screen-title" style="text-align:left;margin-top:6px">Настройки</h1>
@@ -1342,8 +1379,8 @@ function settings() {
   <label style="display:flex;gap:10px;align-items:center;margin:14px 0"><input id="share-avatar" type="checkbox" ${!state.profileSettingsLoaded || state.profileSettingsLoading || state.profileSettingsError ? 'disabled' : ''} ${p?.show_avatar ? 'checked' : ''} onchange="saveSharingPreferences()"> Показывать аватарку</label>
   <label style="display:flex;gap:10px;align-items:center;margin:14px 0"><input id="share-country" type="checkbox" ${!state.profileSettingsLoaded || state.profileSettingsLoading || state.profileSettingsError ? 'disabled' : ''} ${p?.show_country ? 'checked' : ''} onchange="saveSharingPreferences()"> Показывать страну</label>
   <label style="display:flex;gap:10px;align-items:center;margin:14px 0"><input id="share-city" type="checkbox" ${!state.profileSettingsLoaded || state.profileSettingsLoading || state.profileSettingsError ? 'disabled' : ''} ${p?.show_city ? 'checked' : ''} onchange="saveSharingPreferences()"> Показывать город</label>
-  <label style="display:flex;gap:10px;align-items:center;margin:14px 0"><input id="share-telegram" type="checkbox" ${!state.profileSettingsLoaded || state.profileSettingsLoading || state.profileSettingsError ? 'disabled' : ''} ${p?.show_telegram ? 'checked' : ''} onchange="saveSharingPreferences()"> Показывать мой Telegram-юзернейм</label>
-  ${state.profileSettingsError ? '<button type="button" class="btn-pill-outline" onclick="refreshOwnProfile()">Загрузить настройки заново</button>' : ''}<p id="visibility-status" role="status" class="person-sub">${esc(state.profileSettingsError || (state.profileSettingsLoading ? 'Загружаем настройки…' : ''))}</p><p class="demo-note">Аватарка, страна, город и юзернейм не показываются без отдельного включения. При переходе в Telegram действуют его настройки приватности. Используй тестовые данные.</p></div>
+  <label style="display:flex;gap:10px;align-items:center;margin:14px 0"><input id="share-telegram" type="checkbox" ${!state.profileSettingsLoaded || state.profileSettingsLoading || state.profileSettingsError || (telegramUsernameMissing() && !p?.show_telegram) ? 'disabled' : ''} ${p?.show_telegram ? 'checked' : ''} onchange="saveSharingPreferences()"> Показывать мой Telegram-юзернейм</label>${telegramUsernameMissing() ? '<p class="person-sub" style="margin-top:-6px">У твоего аккаунта Telegram нет юзернейма, поэтому показать его нельзя. Установи юзернейм в настройках Telegram и заново открой EIGE.</p>' : ''}
+  ${state.profileSettingsError ? '<button type="button" class="btn-pill-outline" onclick="refreshOwnProfile()">Загрузить настройки заново</button>' : ''}<p id="visibility-status" role="status" class="person-sub">${esc(state.profileSettingsError || (state.profileSettingsLoading ? 'Загружаем настройки…' : ''))}</p><p class="demo-note">Аватарка, страна, город и юзернейм не показываются без отдельного включения. При переходе в Telegram действуют его настройки приватности.</p></div>
   <div class="card"><strong>Администрирование</strong><p class="person-sub">Доступ возможен только для разрешённых Telegram-аккаунтов и с паролем.</p><button class="btn-pill-outline" type="button" onclick="showMyTelegramId()">Показать мой Telegram ID</button><p id="own-telegram-id" role="status" style="font-size:12px;color:var(--ink-muted);user-select:text"></p><button class="btn-pill-outline" type="button" onclick="go('admin')">Админ-панель</button></div>
   <div class="card"><strong>Безопасность</strong><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Если кто-то ведёт себя подозрительно, открой его анкету или проект и нажми «Пожаловаться». Жалобы проверяются вручную, не мгновенно.</p><p class="person-sub">Если тебе угрожают или нужна срочная помощь, обратись к взрослому, которому доверяешь, или в местные экстренные службы. Личные переписки в Telegram не контролируются EIGE.</p></div>
   <div class="card"><strong>Аккаунт</strong><p class="person-sub">Удаление необратимо: анкета, свои проекты, связанные заявки и сообщения будут удалены.</p><button class="btn-pill-outline danger-btn" type="button" onclick="askDeleteAccount()">Удалить аккаунт</button></div>
@@ -1468,7 +1505,7 @@ function openProjectForm() {
       </div><div class="field-group"><label class="field-label">Страна</label><input class="field-input" name="country" maxlength="60" list="project-countries" placeholder="Выбери или введи страну"><datalist id="project-countries"><option value="Россия"><option value="Казахстан"><option value="Беларусь"><option value="Другая"></datalist></div>
       <div class="field-group"><label class="field-label">Кто нужен в команду</label><p class="skill-note" style="margin:0 12px 6px">Навыки нужны для подбора участников. Их можно изменить позже в профиле.</p>${skillPicker('project-create-skills', [], 'wanted_skills')}</div>
       <button class="btn-pill-primary" type="submit">Создать проект</button>
-      <p class="demo-note">Проект будет виден другим пользователям EIGE. Не указывай личные данные или контакты. Используй только тестовые данные.</p><p id="project-form-status" role="status" style="font-size:12px;color:var(--ink-muted)"></p>
+      <p class="demo-note">Проект будет виден другим пользователям EIGE. Не указывай личные данные или контакты.</p><p id="project-form-status" role="status" style="font-size:12px;color:var(--ink-muted)"></p>
     </form>
   `);
 }
@@ -1514,7 +1551,7 @@ function personDetail(id) {
 
 function projectDetail(index) {
   const p = state.realProjects[index]; if (!p) return;
-  modal('О проекте', `<div style="display:flex;align-items:center;gap:12px;margin-top:14px">${avatarMarkup(p.avatar_data,'✦',true)}<div><h2 style="font-family:var(--font-serif);margin:0;font-size:18px;color:var(--green-deep)">${esc(p.title)}</h2><span style="font-size:11px;color:var(--ink-muted)">${esc(p.category)}${p.city ? ' · '+esc(p.city) : ''}${p.country ? ' · '+esc(p.country) : ''}</span></div></div><p style="color:var(--ink-muted);font-size:12.5px;line-height:1.6;margin:14px 0 18px">${esc(p.description)}</p>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags" style="margin-bottom:14px">${skillTags(p.wanted_skills)}</div>` : ''}<div class="ref-creator"><strong>Создатель проекта</strong><p class="person-sub">${p.is_owner ? 'Вы' : p.creator ? esc(p.creator.name) + ' · ' + esc(roleLabel(p.creator)) + (p.creator.profession ? ' · ' + esc(p.creator.profession) : '') : 'Создатель не опубликовал анкету'}</p></div>${p.is_owner ? `<button class="btn-pill-primary" onclick="viewProjectRequests(${index})">Заявки участников</button>` : p.my_request_status ? `<p>Ваша заявка: <strong>${esc(requestStatus(p.my_request_status))}</strong></p>${p.my_request_status === 'pending' ? `<button class="btn-pill-outline" onclick="withdrawRequest(${index})">Отменить заявку</button>` : p.my_request_status === 'approved' ? `<button class="btn-pill-outline danger-btn" onclick="askLeaveProject(${index})">Выйти из команды</button>` : ''}` : `<p class="demo-note">Создатель проекта увидит имя и статус из твоей анкеты.</p><button class="btn-pill-primary" onclick="applyProject(${index})">Отправить заявку</button>`}${p.is_owner || p.my_request_status === 'approved' ? `<button type="button" class="btn-pill-outline" onclick="openProjectChat(${index})">Чат команды</button>` : ''}${!p.is_owner ? `<button type="button" class="btn-pill-outline" onclick="askReport('project',${index})">Пожаловаться на проект</button>` : ''}<p id="project-detail-status" role="status" class="demo-note"></p>`);
+  modal('О проекте', `<div style="display:flex;align-items:center;gap:12px;margin-top:14px">${avatarMarkup(cachedAvatar(p,'j'),'✦',true)}<div><h2 style="font-family:var(--font-serif);margin:0;font-size:18px;color:var(--green-deep)">${esc(p.title)}</h2><span style="font-size:11px;color:var(--ink-muted)">${esc(p.category)}${p.city ? ' · '+esc(p.city) : ''}${p.country ? ' · '+esc(p.country) : ''}</span></div></div><p style="color:var(--ink-muted);font-size:12.5px;line-height:1.6;margin:14px 0 18px">${esc(p.description)}</p>${parseSkills(p.wanted_skills).length ? `<p class="skill-note">Ищут в команду</p><div class="tags" style="margin-bottom:14px">${skillTags(p.wanted_skills)}</div>` : ''}<div class="ref-creator"><strong>Создатель проекта</strong><p class="person-sub">${p.is_owner ? 'Вы' : p.creator ? esc(p.creator.name) + ' · ' + esc(roleLabel(p.creator)) + (p.creator.profession ? ' · ' + esc(p.creator.profession) : '') : 'Создатель не опубликовал анкету'}</p></div>${p.is_owner ? `<button class="btn-pill-primary" onclick="viewProjectRequests(${index})">Заявки участников</button>` : p.my_request_status ? `<p>Ваша заявка: <strong>${esc(requestStatus(p.my_request_status))}</strong></p>${p.my_request_status === 'pending' ? `<button class="btn-pill-outline" onclick="withdrawRequest(${index})">Отменить заявку</button>` : p.my_request_status === 'approved' ? `<button class="btn-pill-outline danger-btn" onclick="askLeaveProject(${index})">Выйти из команды</button>` : ''}` : `<p class="demo-note">Создатель проекта увидит имя и статус из твоей анкеты.</p><button class="btn-pill-primary" onclick="applyProject(${index})">Отправить заявку</button>`}${p.is_owner || p.my_request_status === 'approved' ? `<button type="button" class="btn-pill-outline" onclick="openProjectChat(${index})">Чат команды</button>` : ''}${!p.is_owner ? `<button type="button" class="btn-pill-outline" onclick="askReport('project',${index})">Пожаловаться на проект</button>` : ''}<p id="project-detail-status" role="status" class="demo-note"></p>`);
 }
 
 async function loadProjects(more = false) {
@@ -1528,6 +1565,7 @@ async function loadProjects(more = false) {
     state.realProjects = more ? state.realProjects.concat(items) : items;
     state.projectsMore = items.length === 100;
     state.projectsLoaded = true; state.projectError = ''; projectsFetchedAt = Date.now();
+    setTimeout(loadAvatars, 0);
   } catch(e) { state.projectsLoaded = true; state.projectError = e.message || 'Не удалось загрузить проекты.'; }
   finally { state.projectsLoading = false; if (state.page === 'projects') render(); }
 }
@@ -1552,7 +1590,7 @@ async function withdrawRequestNow(index) {
 async function openProjectChat(index) {
   const p=state.realProjects[index];if(!p || (!p.is_owner && p.my_request_status!=='approved'))return;
   activeChat={id:p.id,title:p.title,is_owner:!!p.is_owner}; activeChatMessages=[]; chatMenuMessage=null; chatReply=null; activeGroupUrl=null;chatMessagesSignature=null;chatGroupRequested=false;chatSettingsRequested=false;
-  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Чат тестовый и не проверяется мгновенно.</p><details class="chat-settings" ontoggle="onChatSettingsToggle(this)"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><div id="chat-preferences"><p class="person-sub" role="status">Загружаем настройки…</p></div>${p.is_owner?'<button type="button" class="btn-pill-outline" onclick="openChatMembers()">Участники и заявки</button>':''}<details class="chat-group-details" ontoggle="onChatGroupToggle(this)"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
+  modal('Чат команды', `<p class="person-sub">${esc(p.title)} · Создатель и принятые участники</p><p class="person-sub">Не публикуй телефон, адрес, пароли или данные документов. Сообщения проверяются вручную, не мгновенно.</p><details class="chat-settings" ontoggle="onChatSettingsToggle(this)"><summary><span aria-hidden="true">⚙</span> Настройки чата</summary><div id="chat-preferences"><p class="person-sub" role="status">Загружаем настройки…</p></div>${p.is_owner?'<button type="button" class="btn-pill-outline" onclick="openChatMembers()">Участники и заявки</button>':''}<details class="chat-group-details" ontoggle="onChatGroupToggle(this)"><summary>Группа в Telegram <span aria-hidden="true">⌄</span></summary><div id="chat-group"><p class="person-sub" role="status">Загружаем ссылку на группу…</p></div></details></details><div id="chat-list" style="max-height:38vh;overflow:auto"></div><p id="chat-status" role="status" class="person-sub">Загружаем…</p><div id="chat-reply-preview"></div><form id="chat-compose" class="form-blank" onsubmit="sendProjectChat(event)"><textarea class="field-textarea" name="message" maxlength="500" required placeholder="Написать команде"></textarea><button class="btn-pill-primary" type="submit">Отправить</button></form><button type="button" class="btn-pill-outline" onclick="refreshProjectChat()">Обновить сообщения</button>`);
   await refreshProjectChat();
 }
 async function refreshProjectChat() {
@@ -1971,6 +2009,7 @@ async function loadCommunity(more = false) {
     state.communityProfiles = more ? state.communityProfiles.concat(people) : people;
     state.communityMore = people.length === 100;
     state.communityLoaded = true; state.communityError = ''; communityFetchedAt = Date.now();
+    setTimeout(loadAvatars, 0);
   } catch (e) {
     state.communityLoaded = true;
     state.communityError = e.message || 'Не удалось загрузить участников.';
@@ -1984,7 +2023,7 @@ function openRealPerson(index) {
   const p = state.communityProfiles[index];
   if (!p) return;
   state.openContactUsername = p.telegram_username || '';
-  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(p.avatar_data, initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${parseSkills(p.skills).length ? `<p class="skill-note">Навыки</p><div class="tags">${skillTags(p.skills)}</div>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',\'${esc(p.id)}\')">Пожаловаться на анкету</button>`);
+  modal('Профиль участника', `<div class="person-top" style="margin-top:18px">${avatarMarkup(cachedAvatar(p,'p'), initials(p.name))}<div><div class="person-name">${esc(p.name)}</div><div class="person-sub">${esc(roleLabel(p))}${p.profession ? ' · ' + esc(p.profession) : ''}</div></div></div><p style="font-size:12px;color:var(--ink-muted)">Статус: ${esc(p.availability || 'Не указан')}${p.city ? ' · '+esc(p.city) : ''}</p><div class="tags">${tags(p.interests)}</div>${parseSkills(p.skills).length ? `<p class="skill-note">Навыки</p><div class="tags">${skillTags(p.skills)}</div>` : ''}${p.telegram_username ? `<button class="btn-pill-primary" onclick="openTelegramUser()">Написать @${esc(p.telegram_username)}</button><p class="person-sub">Переход в личный Telegram. Общение там не модерируется EIGE. Не сообщай адрес, телефон или пароли.</p>` : '<p class="demo-note">Участник не открыл ссылку на Telegram.</p>'}<button type="button" class="btn-pill-outline" onclick="askReport(\'profile\',\'${esc(p.id)}\')">Пожаловаться на анкету</button>`);
 }
 
 function askReport(kind,index) {
@@ -2184,6 +2223,7 @@ async function refreshCommunityQuietly() {
       if(batch.length<100) break;
     }
     state.communityProfiles=all; state.communityMore=more; state.communityError=''; communityFetchedAt=Date.now();
+    setTimeout(loadAvatars, 0);
     if(state.page==='people') {
       const results=document.getElementById('results'), button=document.getElementById('community-more'), status=document.getElementById('community-status');
       if(results) results.innerHTML=peopleResults();
@@ -2199,7 +2239,7 @@ async function refreshCommunityQuietly() {
 Object.assign(window, {
   state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
-  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists,
+  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists, loadAvatars,
   parseSkills, skillTags, toggleSkill, addCustomSkill, openTeamMatch, runTeamMatch, openMatchPerson, peopleResults, projectResults
 });
 
