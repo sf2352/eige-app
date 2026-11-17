@@ -742,32 +742,34 @@ body{background:#e8e4d9;color:var(--ink-primary)} #app{background:var(--bg-cream
 .nav{left:50%;bottom:12px;width:min(100% - 24px,456px);border-radius:999px;background:var(--olive);border:0;padding:8px 6px;box-shadow:0 12px 30px #3f4a1f40;backdrop-filter:none;margin-bottom:env(safe-area-inset-bottom)}
 .nav button{color:#e7ead6;border-radius:999px;padding:7px 10px;min-width:64px;font-size:9.5px;letter-spacing:.3px}.nav button.active{color:#fff;background:#ffffff26}.nav svg{width:21px;height:21px}
 /* Заголовок с логотипом + «Hello, I am Eige!» (заставка и приветствие) */
-.fg-logo{width:66px;height:66px;display:block;margin:0 auto}.fg-logo svg{width:100%;height:100%;display:block}
+.fg-logo{width:66px;height:66px;display:block;margin:0 auto}.fg-logo svg,.fg-logo img{width:100%;height:100%;display:block;border-radius:50%}.fg-logo svg{display:none}.fg-logo.no-img img{display:none}.fg-logo.no-img svg{display:block}.serge-banner-card img{width:100%;height:auto;display:block}
 .fg-title{font-family:var(--font-serif);font-weight:400;font-size:36px;line-height:1.15;letter-spacing:-.3px;color:#111;text-align:center;margin:22px 0 14px}.fg-title em{font-style:italic;font-weight:400}
 .fg-caps{font-family:var(--font-caps);font-weight:400;text-transform:uppercase;font-size:12.5px;line-height:1.5;letter-spacing:.4px;color:#3d3c3a;text-align:center;margin:0 auto;max-width:360px}
 .fg-splash{min-height:calc(100vh - 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}.fg-splash .fg-title{margin-bottom:8px}.fg-splash .person-sub{text-align:center;max-width:300px}
 .fg-welcome{display:flex;flex-direction:column;min-height:calc(100vh - 20px);padding:46px 22px 30px}.fg-welcome-photo{margin:40px auto 0;width:min(100%,290px);aspect-ratio:4/3;border-radius:28px;overflow:hidden;background:#fff;box-shadow:0 14px 34px #3a3a2a30}.fg-welcome-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .fg-cta{margin-top:auto;width:100%;border:0;border-radius:999px;background:var(--sage);color:var(--sage-deep);padding:24px 26px;font-family:var(--font-sans);font-size:22px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 12px 28px #6c7a4a40;transition:transform .15s}.fg-cta:active{transform:scale(.98)}.fg-cta span{font-size:24px;font-weight:400;letter-spacing:-6px;margin-right:6px}
 /* Фото-баннеры разделов «Люди» и «Проекты» */
-.fg-banner{position:relative;display:block;width:100%;aspect-ratio:1.68;border:0;border-radius:30px;overflow:hidden;padding:24px 24px;text-align:left;color:#fff;cursor:pointer;background:#1f3a28 center/cover no-repeat;box-shadow:0 14px 32px #2a2a1a33;transition:transform .15s}.fg-banner:active{transform:scale(.985)}
-.fg-banner.people{background-image:url(assets/forest.jpg),linear-gradient(135deg,#243d22,#0f261a)}.fg-banner.projects{background-image:linear-gradient(100deg,#0c4016 0%,#07200f 45%,#0e1438 100%)}
-/* 3D-фигуры в баннере проектов: въезжают при открытии и медленно парят */
-.fg-shape{position:absolute;pointer-events:none;will-change:transform}.fg-shape img{display:block;width:100%;height:auto;filter:drop-shadow(0 18px 24px #00000080)}
-.fg-shape.cube{left:5%;top:-2%;width:31%;animation:fgEnterL .9s cubic-bezier(.2,.8,.2,1) both}.fg-shape.cube img{animation:fgFloatCube 7s ease-in-out infinite alternate}
-.fg-shape.torus{right:2%;top:14%;width:44%;animation:fgEnterR 1s cubic-bezier(.2,.8,.2,1) .1s both}.fg-shape.torus img{animation:fgFloatTorus 9s ease-in-out infinite alternate}
-.fg-banner.projects::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,#ffffff2e 50%,transparent 70%);transform:translateX(-120%);animation:fgShine 1.6s ease-out .5s 1 both;pointer-events:none}
-@keyframes fgEnterL{from{transform:translate(-50px,-36px) scale(.6);opacity:0}to{transform:none;opacity:1}}
-@keyframes fgEnterR{from{transform:translate(60px,40px) scale(.6);opacity:0}to{transform:none;opacity:1}}
-@keyframes fgFloatCube{from{transform:translate(0,0) rotate(-8deg)}to{transform:translate(12px,16px) rotate(9deg)}}
-@keyframes fgFloatTorus{from{transform:translate(0,8px) rotate(0)}to{transform:translate(-10px,-12px) rotate(-14deg)}}
+.fg-banner{position:relative;display:block;width:100%;border:0;border-radius:30px;overflow:hidden;padding:0;text-align:left;color:#fff;cursor:pointer;background:#1f3a28;box-shadow:0 14px 32px #2a2a1a33;transition:transform .15s}.fg-banner:active{transform:scale(.985)}
+.fg-banner.people{aspect-ratio:726/422}.fg-banner.projects{aspect-ratio:726/546}
+.fg-banner-img{position:absolute;inset:0;background:center/cover no-repeat;will-change:transform}
+.fg-banner.people .fg-banner-img{background-image:url(assets/people.jpg),linear-gradient(135deg,#243d22,#0f261a)}.fg-banner.projects .fg-banner-img{background-image:url(assets/projects.jpg),linear-gradient(100deg,#0c4016,#0e1438)}
+/* Появление экрана по нажатию на вкладку (как в прототипе Figma): контент всплывает, баннер «выпрыгивает», по нему проходит блик, затем картинка медленно дышит */
+.fg-enter .fg-screen{animation:fgScreen .45s cubic-bezier(.2,.8,.2,1) both}
+.fg-enter .fg-banner{animation:fgPop .75s cubic-bezier(.3,1.35,.45,1) both}.fg-enter .fg-banner-sub{animation:fgRise .5s ease-out .25s both}.fg-enter .search,.fg-enter .filters{animation:fgRise .5s ease-out .35s both}
+.fg-enter .fg-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,#ffffff33 50%,transparent 70%);transform:translateX(-120%);animation:fgShine 1.4s ease-out .45s 1 both;pointer-events:none}
+.fg-banner.projects .fg-banner-img{animation:fgBreathe 9s ease-in-out 1s infinite alternate}
+@keyframes fgScreen{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes fgPop{from{opacity:0;transform:translateY(40px) scale(.86)}to{opacity:1;transform:none}}
+@keyframes fgBreathe{from{transform:scale(1)}to{transform:scale(1.07)}}
 @keyframes fgShine{to{transform:translateX(120%)}}
 /* Заставка: шарик из макета падает, подпрыгивает и превращается в логотип */
 .fg-splash{position:relative}.fg-ball{width:104px;height:104px;border-radius:50%;background:#fbfaf4;box-shadow:0 14px 30px #4a46381f,0 2px 6px #4a463814;position:absolute;left:50%;top:50%;margin:-52px 0 0 -52px;animation:fgBall 1.5s cubic-bezier(.33,.66,.4,1) both}
 .fg-splash .fg-logo,.fg-splash .fg-title,.fg-splash .person-sub,.fg-splash .btn-pill-primary{animation:fgRise .6s ease-out 1.25s both}.fg-splash .fg-title{animation-delay:1.4s}.fg-splash .person-sub{animation-delay:1.55s}
 @keyframes fgBall{0%{transform:translateY(-70vh) scale(.7);opacity:0}30%{transform:translateY(0) scale(1);opacity:1}45%{transform:translateY(-46px) scale(1)}58%{transform:translateY(0) scale(1.04,.96)}66%{transform:translateY(-12px) scale(1)}74%{transform:translateY(0)}100%{transform:translateY(-112px) scale(.62);opacity:0}}
+@keyframes fgFlower{from{opacity:0;transform:scale(.7) translateY(30px)}to{opacity:1;transform:none}}
 @keyframes fgRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 /* Приветствие появляется мягко */
-.fg-welcome>*{animation:fgRise .7s ease-out both}.fg-welcome>:nth-child(2){animation-delay:.1s}.fg-welcome>:nth-child(3){animation-delay:.2s}.fg-welcome>:nth-child(4){animation-delay:.3s}.fg-welcome>:nth-child(5){animation-delay:.45s}
+.fg-welcome>*{animation:fgRise .7s ease-out both}.fg-welcome>:nth-child(2){animation-delay:.1s}.fg-welcome>:nth-child(3){animation-delay:.2s}.fg-welcome>:nth-child(4){animation:fgFlower .9s cubic-bezier(.3,1.3,.45,1) .35s both}.fg-welcome>:nth-child(5){animation-delay:.45s}
 /* Анкета: переливание градиента из макета (жёлтый, персиковый, розовый, салатовый) */
 body.fg-form #app{overflow:hidden}body.fg-form #app>*{position:relative;z-index:1}
 body.fg-form #app::before,body.fg-form #app::after{content:"";position:absolute;width:150vmax;height:150vmax;max-width:900px;max-height:900px;border-radius:50%;pointer-events:none;z-index:0}
@@ -775,9 +777,7 @@ body.fg-form #app::before{left:-40%;top:-30%;background:radial-gradient(circle,#
 body.fg-form #app::after{right:-50%;bottom:-20%;background:radial-gradient(circle,#d6f0b4d9 0%,#fbe3a880 34%,transparent 64%);animation:fgBlobB 14s ease-in-out infinite alternate}
 @keyframes fgBlobA{from{transform:translate(0,0)}50%{transform:translate(28%,22%)}to{transform:translate(55%,6%)}}
 @keyframes fgBlobB{from{transform:translate(0,0)}50%{transform:translate(-30%,-24%)}to{transform:translate(-8%,-48%)}}
-@media (prefers-reduced-motion:reduce){.fg-shape,.fg-shape img,.fg-ball,.fg-splash *,.fg-welcome>*,.fg-banner.projects::after,body.fg-form #app::before,body.fg-form #app::after{animation:none!important}.fg-ball{display:none}}
-.fg-banner.projects .fg-banner-title{top:auto;bottom:24px}
-.fg-banner-title{position:absolute;left:24px;top:22px;margin:0;font-family:var(--font-sans);font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.4px;text-shadow:0 2px 14px #00000066;max-width:60%}
+@media (prefers-reduced-motion:reduce){.fg-ball,.fg-splash *,.fg-welcome>*,.fg-enter *,.fg-banner-img,.fg-banner::after,body.fg-form #app::before,body.fg-form #app::after{animation:none!important}.fg-ball{display:none}}
 .fg-banner-sub{display:flex;align-items:center;gap:12px;margin:14px 2px 18px;color:#1f1f1c;font-size:13px;line-height:1.35}.fg-banner-sub svg{width:26px;height:26px;flex:none;fill:#1f1f1c}.fg-banner-sub p{margin:0;flex:1}
 .fg-refresh{width:34px;height:34px;flex:none;border:1px solid #dcd7c7;background:#fbf9f3;border-radius:50%;color:#1f1f1c;font-size:20px;line-height:1}
 .fg-home-status{display:flex;align-items:center;gap:12px;margin-top:22px;padding:14px 16px;border-radius:18px;background:#ecebdf;color:#1f1f1c}.fg-home-status strong{font-size:13px;display:block}.fg-home-status p{margin:3px 0 0;color:#5b5a57;font-size:11.5px}.fg-home-status .dot{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--sage);color:var(--sage-deep);font-weight:800}
@@ -824,7 +824,7 @@ function set(k, val) {
   try { localStorage.setItem('eige_' + k, JSON.stringify(val)); } catch(e){}
 }
 
-let welcomeSeen = false; // приветствие «Hello, I am Eige!» показывается один раз, до анкеты
+let welcomeSeen = false, renderedPage = null; // приветствие «Hello, I am Eige!» показывается один раз, до анкеты
 let state = {
   page: 'register',
   launchState: 'loading',
@@ -1016,7 +1016,7 @@ function clearAvatar(id,project) {
 
 // Круглый логотип из макета: кольцо, надпись EIGE✦ и три сэргэ под дугой. Вектор — не размывается.
 function roundLogo() {
-  return `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#c0c6a4"/><circle cx="50" cy="50" r="40" fill="#d8dcc3"/><circle cx="50" cy="50" r="33" fill="#e9ebdb"/>
+  return `<img src="assets/logo.png" alt="" onerror="this.parentNode.classList.add('no-img')"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#c0c6a4"/><circle cx="50" cy="50" r="40" fill="#d8dcc3"/><circle cx="50" cy="50" r="33" fill="#e9ebdb"/>
     <text x="50" y="40" text-anchor="middle" font-family="Playfair Display,Georgia,serif" font-size="15" fill="#3f4f23" letter-spacing=".5">EIGE</text><text x="76" y="33" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="#647832">✦</text>
     <path d="M22 68c8-9 48-9 56 0" fill="none" stroke="#647832" stroke-width="1.6"/>
     <g fill="#8a6a3a"><rect x="33" y="50" width="3.4" height="16" rx="1"/><rect x="48.3" y="46" width="3.4" height="20" rx="1"/><rect x="63.6" y="50" width="3.4" height="16" rx="1"/></g>
@@ -1161,7 +1161,7 @@ function register() {
     <div class="wrap">
       <!-- Serge Illustration Card -->
       <div class="serge-banner-card">
-        ${sergeSvg()}
+        <img src="assets/serge.jpg" alt="EIGE" onerror="this.outerHTML=sergeSvg()">
       </div>
 
       <div class="screen-title">${state.registered ? 'МОЯ АНКЕТА' : 'СОЗДАТЬ АНКЕТУ'}</div>
@@ -1253,8 +1253,8 @@ function home() {
 }
 function peopleIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9.5" r="2.6"/><path d="M2.5 19c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6zM14.5 18.6c.6-2.6 2.2-4.2 4.6-4.2 1.4 0 2.4.6 2.4 1.8V19z"/></svg>`; }
 function projectIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.3L5.5 7.9 12 11.5l6.5-3.6zM5 9.6v6.3l6 3.3v-6.3zm8 3.3v6.3l6-3.3V9.6z"/></svg>`; }
-function peopleBanner(onclick = "go('people')") { return `<button type="button" class="fg-banner people" onclick="${onclick}" aria-label="Искать своих людей"><h2 class="fg-banner-title">искать<br>своих<br>людей</h2></button>`; }
-function projectsBanner(onclick = "go('projects')") { return `<button type="button" class="fg-banner projects" onclick="${onclick}" aria-label="Создать свой проект"><span class="fg-shape cube"><img src="assets/cube.webp" alt="" onerror="this.parentNode.remove()"></span><span class="fg-shape torus"><img src="assets/torus.webp" alt="" onerror="this.parentNode.remove()"></span><h2 class="fg-banner-title">создать<br>свой<br>проект</h2></button>`; }
+function peopleBanner(onclick = "go('people')") { return `<button type="button" class="fg-banner people" onclick="${onclick}" aria-label="Искать своих людей"><span class="fg-banner-img"></span></button>`; }
+function projectsBanner(onclick = "go('projects')") { return `<button type="button" class="fg-banner projects" onclick="${onclick}" aria-label="Создать свой проект"><span class="fg-banner-img"></span></button>`; }
 
 function people() {
   return `
@@ -1515,7 +1515,9 @@ function render() {
     admin: adminPanel
   }[state.page] || home;
 
-  app.innerHTML = appHeader() + content() + nav();
+  const entering = renderedPage !== state.page; renderedPage = state.page;
+  app.innerHTML = appHeader() + `<div class="fg-screen">` + content() + `</div>` + nav();
+  bodyClass('fg-enter', entering);
   document.body.classList.remove('keyboard-active');
   if (state.page === 'people' && !state.communityLoaded && !state.communityLoading) loadCommunity(false);
   if (state.page === 'projects' && !state.projectsLoaded && !state.projectsLoading) loadProjects(false);
@@ -2350,7 +2352,7 @@ async function refreshCommunityQuietly() {
 Object.assign(window, {
   state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
-  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists, loadAvatars, startRegistration,
+  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists, loadAvatars, startRegistration, sergeSvg,
   parseSkills, skillTags, toggleSkill, addCustomSkill, openTeamMatch, runTeamMatch, openMatchPerson, peopleResults, projectResults
 });
 
