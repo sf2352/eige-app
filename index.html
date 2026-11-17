@@ -846,10 +846,13 @@ let adminReportFilter = 'open', adminChatFilter = 'open';
 let adminChatReports = [], adminChatReportsMore = false, adminChatBlocks = [], adminChatBlocksMore = false;
 let activeChat = null, activeChatMessages = [], chatLoading = null, pendingChatReport = null;
 let chatMessagesSignature = null, chatGroupRequested = false, chatSettingsRequested = false;
-let profileFetchedAt = 0, myProjectsFetchedAt = 0;
+let profileFetchedAt = 0, myProjectsFetchedAt = 0, communityFetchedAt = 0, projectsFetchedAt = 0;
 let chatMenuMessage = null, chatReacting = false, chatReply = null, activeGroupUrl = null;
 const chatReactions = [{key:'like',emoji:'👍',label:'Нравится'},{key:'heart',emoji:'❤️',label:'Сердце'},{key:'laugh',emoji:'😂',label:'Смешно'},{key:'wow',emoji:'😮',label:'Удивление'},{key:'sad',emoji:'😢',label:'Грустно'},{key:'fire',emoji:'🔥',label:'Огонь'}];
 let reportTarget = null;
+// A second tap on the same button while the first request is in flight is ignored (no duplicate requests, no misleading errors).
+const pendingActions = new Set();
+async function runOnce(key, fn) { if (pendingActions.has(key)) return; pendingActions.add(key); try { return await fn(); } finally { pendingActions.delete(key); } }
 let adminLoaded = false, adminLoading = false, adminUsersMore = false, adminProjectsMore = false;
 let adminError = '';
 function roleLabel(p) {
@@ -1122,13 +1125,7 @@ function people() {
       
       <input class="search" id="search" placeholder="⌕  Имя, навык или направление" value="${esc(state.search)}" oninput="searchChange(this.value)">
       
-      <div class="filters">
-        ${['Все','Ученик','Выпускник','Педагог','Специалист / предприниматель','Готов помочь'].map((x,i) => `
-          <button type="button" class="chip ${(i===0 ? !state.peopleFilters.length : state.peopleFilters.includes(x))?'active':''}" onclick="togglePeopleFilter(${i})">
-            ${x==='Ученик'?'Ученики':x==='Выпускник'?'Выпускники':x==='Педагог'?'Педагоги':x==='Специалист / предприниматель'?'Специалисты':x==='Готов помочь'?'Готовы помочь':x}
-          </button>
-        `).join('')}
-      </div>
+      <div class="filters" id="filters">${peopleFilterChips()}</div>
 
       <p style="font-size:12px;color:var(--ink-muted);line-height:1.6">Здесь показаны участники, согласившиеся публиковать профиль. Данные могут быть видны любому пользователю Telegram, открывшему EIGE.</p>
       <p id="community-status" role="status" style="font-size:12px;color:var(--ink-muted)">${esc(state.communityError)}</p>
@@ -1154,6 +1151,25 @@ function filterPeople(f) {
   state.peopleFilters = f === 'Наставник' ? ['Готов помочь'] : [];
   go('people');
 }
+function peopleFilterChips() {
+  return ['Все','Ученик','Выпускник','Педагог','Специалист / предприниматель','Готов помочь'].map((x,i) => `
+          <button type="button" class="chip ${(i===0 ? !state.peopleFilters.length : state.peopleFilters.includes(x))?'active':''}" onclick="togglePeopleFilter(${i})">
+            ${x==='Ученик'?'Ученики':x==='Выпускник'?'Выпускники':x==='Педагог'?'Педагоги':x==='Специалист / предприниматель'?'Специалисты':x==='Готов помочь'?'Готовы помочь':x}
+          </button>
+        `).join('');
+}
+function projectFilterChips() {
+  return ['Все','Язык и культура','Экология','Предпринимательство','IT'].map(x => `
+          <button class="chip ${state.projectFilter===x?'active':''}" onclick="setProjectFilter(this.dataset.filter)" data-filter="${esc(x)}">${x}</button>
+        `).join('');
+}
+// Redraw only the chips and the list; a full render would close the keyboard and rebuild every row.
+function refreshListUi() {
+  const filters = document.getElementById('filters'), results = document.getElementById('results');
+  if (!filters || !results) { render(); return; }
+  filters.innerHTML = state.page === 'people' ? peopleFilterChips() : projectFilterChips();
+  results.innerHTML = state.page === 'people' ? peopleResults() : projectResults();
+}
 function togglePeopleFilter(i) {
   const options = ['Все','Ученик','Выпускник','Педагог','Специалист / предприниматель','Готов помочь'];
   const x = options[i];
@@ -1161,7 +1177,12 @@ function togglePeopleFilter(i) {
   if (i === 0) state.peopleFilters = [];
   else if (state.peopleFilters.includes(x)) state.peopleFilters = state.peopleFilters.filter(v => v !== x);
   else state.peopleFilters.push(x);
-  render();
+  refreshListUi();
+}
+function setProjectFilter(x) {
+  if (!['Все','Язык и культура','Экология','Предпринимательство','IT'].includes(x)) return;
+  state.projectFilter = x;
+  refreshListUi();
 }
 
 function personCard(p) {
@@ -1196,11 +1217,7 @@ function projects() {
 
       <input class="search" id="search" placeholder="⌕  Поиск по проектам" value="${esc(state.search)}" oninput="searchChange(this.value)">
 
-      <div class="filters">
-        ${['Все','Язык и культура','Экология','Предпринимательство','IT'].map(x => `
-          <button class="chip ${state.projectFilter===x?'active':''}" onclick="state.projectFilter='${x}';render()">${x}</button>
-        `).join('')}
-      </div>
+      <div class="filters" id="filters">${projectFilterChips()}</div>
 
       <div id="results">${projectResults()}</div>
       <p id="project-load-status" role="status" style="color:var(--ink-muted);font-size:12px">${esc(state.projectError)}</p>
@@ -1298,7 +1315,8 @@ function askDeleteMyProject(index) {
   const p=state.myProjects[index];if(!p)return;
   modal('Удалить проект?', `<p style="line-height:1.6;color:var(--ink-muted)">Проект «${esc(p.title)}», его заявки и сообщения будут удалены без возможности восстановления.</p><button type="button" class="btn-pill-primary" onclick="deleteMyProject(${index})">Да, удалить проект</button><button type="button" class="btn-pill-outline" onclick="closeModal()">Отмена</button><p id="delete-project-status" role="status" class="person-sub"></p>`);
 }
-async function deleteMyProject(index) {
+async function deleteMyProject(index) { return runOnce('deleteMyProject', () => deleteMyProjectNow(index)); }
+async function deleteMyProjectNow(index) {
   const p=state.myProjects[index],status=document.getElementById('delete-project-status');if(!p || !status)return;
   status.textContent='Удаляем…';
   try {await communityRequest('delete_project',{project_id:p.id});closeModal();state.projectsLoaded=false;state.myProjectsLoaded=false;render();toast('Проект удалён');}
@@ -1363,8 +1381,9 @@ function go(page) {
   const changed=state.page !== page;
   if (changed) {
     state.search = '';
-    if (page === 'people') state.communityLoaded = false;
-    if (page === 'projects') state.projectsLoaded = false;
+    // Fresh lists are shown instantly; they are re-downloaded only when older than a minute.
+    if (page === 'people' && Date.now()-communityFetchedAt>60000) state.communityLoaded = false;
+    if (page === 'projects' && Date.now()-projectsFetchedAt>60000) state.projectsLoaded = false;
     if (page === 'profile') {
       if(Date.now()-profileFetchedAt>15000)state.profileSettingsLoaded = false;
       if(Date.now()-myProjectsFetchedAt>15000)state.myProjectsLoaded = false;
@@ -1499,7 +1518,7 @@ function projectDetail(index) {
 }
 
 async function loadProjects(more = false) {
-  if (state.projectsLoading) return;
+  if (state.projectsLoading) { const s = document.getElementById('project-load-status'); if (s) s.textContent = 'Список уже обновляется…'; return; }
   state.projectsLoading = true;
   const status = document.getElementById('project-load-status');
   if (status) status.textContent = 'Загружаем проекты…';
@@ -1508,19 +1527,21 @@ async function loadProjects(more = false) {
     const items = Array.isArray(data.projects) ? data.projects : [];
     state.realProjects = more ? state.realProjects.concat(items) : items;
     state.projectsMore = items.length === 100;
-    state.projectsLoaded = true; state.projectError = '';
+    state.projectsLoaded = true; state.projectError = ''; projectsFetchedAt = Date.now();
   } catch(e) { state.projectsLoaded = true; state.projectError = e.message || 'Не удалось загрузить проекты.'; }
   finally { state.projectsLoading = false; if (state.page === 'projects') render(); }
 }
 
-async function applyProject(index) {
+async function applyProject(index) { return runOnce('applyProject', () => applyProjectNow(index)); }
+async function applyProjectNow(index) {
   const p=state.realProjects[index]; const status=document.getElementById('project-detail-status'); if (!p || !status) return;
   status.textContent='Отправляем заявку…';
   try { await communityRequest('apply_project',{project_id:p.id}); closeModal(); state.projectsLoaded=false; if (state.page==='projects') render(); toast('Заявка отправлена создателю проекта'); }
   catch(e) { status.textContent=e.message || 'Не удалось отправить заявку.'; }
 }
 
-async function withdrawRequest(index) {
+async function withdrawRequest(index) { return runOnce('withdrawRequest', () => withdrawRequestNow(index)); }
+async function withdrawRequestNow(index) {
   const p=state.realProjects[index],status=document.getElementById('project-detail-status');
   if (!p || !status) return;
   status.textContent='Отменяем заявку…';
@@ -1690,7 +1711,8 @@ async function viewProjectRequests(index) {
   } catch(e) { if(status) status.textContent=e.message || 'Не удалось загрузить заявки.'; }
 }
 
-async function decideRequest(projectIndex,requestIndex,decision) {
+async function decideRequest(projectIndex,requestIndex,decision) { return runOnce('decideRequest', () => decideRequestNow(projectIndex,requestIndex,decision)); }
+async function decideRequestNow(projectIndex,requestIndex,decision) {
   const p=state.realProjects[projectIndex],r=state.currentRequests[requestIndex],status=document.getElementById('request-list-status');
   if (!p || !r || !status) return;
   status.textContent='Сохраняем решение…';
@@ -1702,7 +1724,8 @@ function askLeaveProject(index) {
   const p=state.realProjects[index];if(!p)return;
   modal('Выйти из команды?', `<p class="person-sub">Ты перестанешь быть участником проекта «${esc(p.title)}». При необходимости можно снова отправить заявку.</p><button class="btn-pill-primary" onclick="leaveProject(${index})">Да, выйти</button><button class="btn-pill-outline" onclick="closeModal()">Отмена</button><p id="team-action-status" role="status" class="person-sub"></p>`);
 }
-async function leaveProject(index) {
+async function leaveProject(index) { return runOnce('leaveProject', () => leaveProjectNow(index)); }
+async function leaveProjectNow(index) {
   const p=state.realProjects[index],status=document.getElementById('team-action-status');if(!p||!status)return;status.textContent='Сохраняем…';
   try{await communityRequest('leave_project',{project_id:p.id});closeModal();state.projectsLoaded=false;if(state.page==='projects')render();toast('Ты вышел из команды');}catch(e){status.textContent=e.message||'Не удалось выйти.';}
 }
@@ -1710,21 +1733,23 @@ function askRemoveMember(projectIndex,requestIndex) {
   const p=state.realProjects[projectIndex],r=state.currentRequests[requestIndex];if(!p||!r)return;
   modal('Удалить участника?', `<p class="person-sub">${esc(r.name)} перестанет быть участником проекта «${esc(p.title)}». Он сможет подать новую заявку.</p><button class="btn-pill-primary" onclick="removeMember(${projectIndex},${requestIndex})">Да, удалить</button><button class="btn-pill-outline" onclick="viewProjectRequests(${projectIndex})">Отмена</button><p id="team-action-status" role="status" class="person-sub"></p>`);
 }
-async function removeMember(projectIndex,requestIndex) {
+async function removeMember(projectIndex,requestIndex) { return runOnce('removeMember', () => removeMemberNow(projectIndex,requestIndex)); }
+async function removeMemberNow(projectIndex,requestIndex) {
   const p=state.realProjects[projectIndex],r=state.currentRequests[requestIndex],status=document.getElementById('team-action-status');if(!p||!r||!status)return;status.textContent='Сохраняем…';
   try{await communityRequest('remove_project_member',{project_id:p.id,request_id:r.id});await viewProjectRequests(projectIndex);}catch(e){status.textContent=e.message||'Не удалось удалить участника.';}
 }
 function askDeleteAccount() {
   modal('Удалить аккаунт?', `<p class="person-sub">Это необратимо. Будут удалены анкета, созданные тобой проекты, связанные заявки и сообщения, а также твои другие заявки и сообщения. Служебный журнал безопасности, ограничения чата и уже отправленные сообщения Telegram могут сохраниться.</p><p class="person-sub">Для подтверждения введи слово УДАЛИТЬ.</p><input id="delete-account-confirm" class="field-input" autocomplete="off" placeholder="УДАЛИТЬ"><button class="btn-pill-primary" type="button" onclick="deleteMyAccount()">Удалить аккаунт</button><button class="btn-pill-outline" type="button" onclick="closeModal()">Отмена</button><p id="delete-account-status" role="status" class="person-sub"></p>`);
 }
-async function deleteMyAccount() {
+async function deleteMyAccount() { return runOnce('deleteMyAccount', deleteMyAccountNow); }
+async function deleteMyAccountNow() {
   const input=document.getElementById('delete-account-confirm'),status=document.getElementById('delete-account-status');if(!input||!status)return;
   if(input.value.trim()!=='УДАЛИТЬ'){status.textContent='Введи слово УДАЛИТЬ для подтверждения.';return;}
   if(input.disabled)return;input.disabled=true;status.textContent='Удаляем аккаунт…';
   try {
     await communityRequest('delete_my_account');
     try {for(let i=localStorage.length-1;i>=0;i--){let key=localStorage.key(i);if(key?.startsWith('eige_'))localStorage.removeItem(key);}} catch(_){}
-    adminSession='';adminUsers=[];adminProjects=[];adminReports=[];adminChatReports=[];adminChatBlocks=[];adminLoaded=false;profileFetchedAt=0;myProjectsFetchedAt=0;state.profile=null;state.profileDraft={};state.registered=false;state.page='register';state.myProjects=[];state.realProjects=[];state.communityProfiles=[];state.requests=[];state.projects=[];state.currentRequests=[];state.myProjectsLoaded=false;state.projectsLoaded=false;state.communityLoaded=false;state.profileSettingsLoaded=false;
+    adminSession='';adminUsers=[];adminProjects=[];adminReports=[];adminChatReports=[];adminChatBlocks=[];adminLoaded=false;profileFetchedAt=0;myProjectsFetchedAt=0;communityFetchedAt=0;projectsFetchedAt=0;state.profile=null;state.profileDraft={};state.registered=false;state.page='register';state.myProjects=[];state.realProjects=[];state.communityProfiles=[];state.requests=[];state.projects=[];state.currentRequests=[];state.myProjectsLoaded=false;state.projectsLoaded=false;state.communityLoaded=false;state.profileSettingsLoaded=false;
     closeModal();render();toast('Аккаунт удалён');
   } catch(e){status.textContent=e.message||'Не удалось удалить аккаунт.';input.disabled=false;}
 }
@@ -1897,6 +1922,14 @@ async function communityRequest(action, extra, options) {
     if (data.error === 'Request not pending') throw new Error('Заявка уже рассмотрена. Обнови список проектов.');
     if (data.error === 'Already applied') throw new Error('Ты уже отправил заявку в этот проект. Обнови список проектов.');
     if (data.error === 'Telegram data expired') throw new Error('Закрой приложение и открой заново через бота.');
+    if (data.error === 'Request not found or already decided') throw new Error('Заявка уже рассмотрена или отозвана. Список обновлён.');
+    if (data.error === 'Not a member') throw new Error('Этот участник уже не в команде. Обнови список.');
+    if (data.error === 'Invalid project') throw new Error('Проверь проект: название до 70 символов, описание до 400, направление из списка.');
+    if (data.error === 'Invalid message') throw new Error('Сообщение пустое или длиннее 500 символов.');
+    if (data.error === 'Invalid request') throw new Error('Сервер не принял запрос. Закрой и заново открой EIGE.');
+    if (data.error === 'Unknown action') throw new Error('Эта функция появится после обновления сервера EIGE. Попробуй позже.');
+    if (data.error === 'Request too large') throw new Error('Слишком большой запрос. Уменьши картинку или сократи текст.');
+    if (data.error === 'Project not found') throw new Error('Проект уже удалён. Обнови список проектов.');
     throw new Error('Не удалось выполнить запрос. Проверь настройки сервера и базы.');
   }
   return data;
@@ -1927,7 +1960,7 @@ async function saveSharingPreferences() {
 }
 
 async function loadCommunity(more = false) {
-  if (state.communityLoading) return;
+  if (state.communityLoading) { const s = document.getElementById('community-status'); if (s) s.textContent = 'Список уже обновляется…'; return; }
   state.communityLoading = true;
   const status = document.getElementById('community-status');
   if (status) status.textContent = 'Загружаем…';
@@ -1937,7 +1970,7 @@ async function loadCommunity(more = false) {
     const people = Array.isArray(data.profiles) ? data.profiles : [];
     state.communityProfiles = more ? state.communityProfiles.concat(people) : people;
     state.communityMore = people.length === 100;
-    state.communityLoaded = true; state.communityError = '';
+    state.communityLoaded = true; state.communityError = ''; communityFetchedAt = Date.now();
   } catch (e) {
     state.communityLoaded = true;
     state.communityError = e.message || 'Не удалось загрузить участников.';
@@ -1976,7 +2009,8 @@ function openTelegramUser() {
   else window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-async function saveAvailability() {
+async function saveAvailability() { return runOnce('saveAvailability', saveAvailabilityNow); }
+async function saveAvailabilityNow() {
   const select = document.getElementById('availability-select');
   const status = document.getElementById('availability-status');
   if (!select || !status) return;
@@ -2123,6 +2157,7 @@ async function startApp() {
     state.page=state.registered?'home':'register';
     if(data.profile) {set('profile',data.profile);profileFetchedAt=Date.now();}
     state.launchState='ready'; state.launchMessage='';
+    if (state.registered) setTimeout(prefetchLists, 250);
   } catch(e) {
     state.profile=null; state.registered=false; state.launchState='error';
     state.launchMessage=e.message || 'Проверь подключение к интернету и попробуй ещё раз.';
@@ -2130,6 +2165,12 @@ async function startApp() {
 }
 
 // Refresh already loaded pages without rebuilding the search field or losing focus.
+// Runs once after launch while the home screen is shown; failures are silent and retried on tab open.
+function prefetchLists() {
+  if (state.launchState !== 'ready' || !state.registered || document.visibilityState === 'hidden') return;
+  if (!state.communityLoaded && !state.communityLoading) loadCommunity(false);
+  if (!state.projectsLoaded && !state.projectsLoading) loadProjects(false);
+}
 async function refreshCommunityQuietly() {
   if (!state.registered || state.page !== 'people' || !state.communityLoaded || state.communityLoading || document.visibilityState === 'hidden' || document.querySelector('.modal-bg')) return;
   state.communityLoading=true;
@@ -2142,7 +2183,7 @@ async function refreshCommunityQuietly() {
       all.push(...batch); more=batch.length===100;
       if(batch.length<100) break;
     }
-    state.communityProfiles=all; state.communityMore=more; state.communityError='';
+    state.communityProfiles=all; state.communityMore=more; state.communityError=''; communityFetchedAt=Date.now();
     if(state.page==='people') {
       const results=document.getElementById('results'), button=document.getElementById('community-more'), status=document.getElementById('community-status');
       if(results) results.innerHTML=peopleResults();
@@ -2158,7 +2199,7 @@ async function refreshCommunityQuietly() {
 Object.assign(window, {
   state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
-  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests,
+  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists,
   parseSkills, skillTags, toggleSkill, addCustomSkill, openTeamMatch, runTeamMatch, openMatchPerson, peopleResults, projectResults
 });
 
