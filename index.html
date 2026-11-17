@@ -750,7 +750,32 @@ body{background:#e8e4d9;color:var(--ink-primary)} #app{background:var(--bg-cream
 .fg-cta{margin-top:auto;width:100%;border:0;border-radius:999px;background:var(--sage);color:var(--sage-deep);padding:24px 26px;font-family:var(--font-sans);font-size:22px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 12px 28px #6c7a4a40;transition:transform .15s}.fg-cta:active{transform:scale(.98)}.fg-cta span{font-size:24px;font-weight:400;letter-spacing:-6px;margin-right:6px}
 /* Фото-баннеры разделов «Люди» и «Проекты» */
 .fg-banner{position:relative;display:block;width:100%;aspect-ratio:1.68;border:0;border-radius:30px;overflow:hidden;padding:24px 24px;text-align:left;color:#fff;cursor:pointer;background:#1f3a28 center/cover no-repeat;box-shadow:0 14px 32px #2a2a1a33;transition:transform .15s}.fg-banner:active{transform:scale(.985)}
-.fg-banner.people{background-image:url(assets/forest.jpg),linear-gradient(135deg,#243d22,#0f261a)}.fg-banner.projects{background-image:url(assets/chrome.jpg),linear-gradient(100deg,#0c4016,#0e1438)}
+.fg-banner.people{background-image:url(assets/forest.jpg),linear-gradient(135deg,#243d22,#0f261a)}.fg-banner.projects{background-image:linear-gradient(100deg,#0c4016 0%,#07200f 45%,#0e1438 100%)}
+/* 3D-фигуры в баннере проектов: въезжают при открытии и медленно парят */
+.fg-shape{position:absolute;pointer-events:none;will-change:transform}.fg-shape img{display:block;width:100%;height:auto;filter:drop-shadow(0 18px 24px #00000080)}
+.fg-shape.cube{left:5%;top:-2%;width:31%;animation:fgEnterL .9s cubic-bezier(.2,.8,.2,1) both}.fg-shape.cube img{animation:fgFloatCube 7s ease-in-out infinite alternate}
+.fg-shape.torus{right:2%;top:14%;width:44%;animation:fgEnterR 1s cubic-bezier(.2,.8,.2,1) .1s both}.fg-shape.torus img{animation:fgFloatTorus 9s ease-in-out infinite alternate}
+.fg-banner.projects::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,#ffffff2e 50%,transparent 70%);transform:translateX(-120%);animation:fgShine 1.6s ease-out .5s 1 both;pointer-events:none}
+@keyframes fgEnterL{from{transform:translate(-50px,-36px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes fgEnterR{from{transform:translate(60px,40px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes fgFloatCube{from{transform:translate(0,0) rotate(-8deg)}to{transform:translate(12px,16px) rotate(9deg)}}
+@keyframes fgFloatTorus{from{transform:translate(0,8px) rotate(0)}to{transform:translate(-10px,-12px) rotate(-14deg)}}
+@keyframes fgShine{to{transform:translateX(120%)}}
+/* Заставка: шарик из макета падает, подпрыгивает и превращается в логотип */
+.fg-splash{position:relative}.fg-ball{width:104px;height:104px;border-radius:50%;background:#fbfaf4;box-shadow:0 14px 30px #4a46381f,0 2px 6px #4a463814;position:absolute;left:50%;top:50%;margin:-52px 0 0 -52px;animation:fgBall 1.5s cubic-bezier(.33,.66,.4,1) both}
+.fg-splash .fg-logo,.fg-splash .fg-title,.fg-splash .person-sub,.fg-splash .btn-pill-primary{animation:fgRise .6s ease-out 1.25s both}.fg-splash .fg-title{animation-delay:1.4s}.fg-splash .person-sub{animation-delay:1.55s}
+@keyframes fgBall{0%{transform:translateY(-70vh) scale(.7);opacity:0}30%{transform:translateY(0) scale(1);opacity:1}45%{transform:translateY(-46px) scale(1)}58%{transform:translateY(0) scale(1.04,.96)}66%{transform:translateY(-12px) scale(1)}74%{transform:translateY(0)}100%{transform:translateY(-112px) scale(.62);opacity:0}}
+@keyframes fgRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* Приветствие появляется мягко */
+.fg-welcome>*{animation:fgRise .7s ease-out both}.fg-welcome>:nth-child(2){animation-delay:.1s}.fg-welcome>:nth-child(3){animation-delay:.2s}.fg-welcome>:nth-child(4){animation-delay:.3s}.fg-welcome>:nth-child(5){animation-delay:.45s}
+/* Анкета: переливание градиента из макета (жёлтый, персиковый, розовый, салатовый) */
+body.fg-form #app{overflow:hidden}body.fg-form #app>*{position:relative;z-index:1}
+body.fg-form #app::before,body.fg-form #app::after{content:"";position:absolute;width:150vmax;height:150vmax;max-width:900px;max-height:900px;border-radius:50%;pointer-events:none;z-index:0}
+body.fg-form #app::before{left:-40%;top:-30%;background:radial-gradient(circle,#f8cfa8d9 0%,#fbd0d080 32%,transparent 62%);animation:fgBlobA 11s ease-in-out infinite alternate}
+body.fg-form #app::after{right:-50%;bottom:-20%;background:radial-gradient(circle,#d6f0b4d9 0%,#fbe3a880 34%,transparent 64%);animation:fgBlobB 14s ease-in-out infinite alternate}
+@keyframes fgBlobA{from{transform:translate(0,0)}50%{transform:translate(28%,22%)}to{transform:translate(55%,6%)}}
+@keyframes fgBlobB{from{transform:translate(0,0)}50%{transform:translate(-30%,-24%)}to{transform:translate(-8%,-48%)}}
+@media (prefers-reduced-motion:reduce){.fg-shape,.fg-shape img,.fg-ball,.fg-splash *,.fg-welcome>*,.fg-banner.projects::after,body.fg-form #app::before,body.fg-form #app::after{animation:none!important}.fg-ball{display:none}}
 .fg-banner.projects .fg-banner-title{top:auto;bottom:24px}
 .fg-banner-title{position:absolute;left:24px;top:22px;margin:0;font-family:var(--font-sans);font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.4px;text-shadow:0 2px 14px #00000066;max-width:60%}
 .fg-banner-sub{display:flex;align-items:center;gap:12px;margin:14px 2px 18px;color:#1f1f1c;font-size:13px;line-height:1.35}.fg-banner-sub svg{width:26px;height:26px;flex:none;fill:#1f1f1c}.fg-banner-sub p{margin:0;flex:1}
@@ -999,8 +1024,8 @@ function roundLogo() {
 }
 function splashScreen() {
   const error = state.launchState === 'error';
-  return `<div class="fg-splash"><div class="fg-logo">${roundLogo()}</div><h1 class="fg-title"><em>Hello,</em> I am Eige!</h1>
-    <p class="person-sub">${error ? '<strong style="display:block;color:#1f1f1c;margin-bottom:4px">Не удалось открыть EIGE</strong>' : 'Загружаем…'}${esc(state.launchMessage)}</p>
+  return `<div class="fg-splash">${error ? '' : '<div class="fg-ball"></div>'}<div class="fg-logo">${roundLogo()}</div><h1 class="fg-title"><em>Hello,</em> I am Eige!</h1>
+    <p class="person-sub" id="splash-msg">${error ? '<strong style="display:block;color:#1f1f1c;margin-bottom:4px">Не удалось открыть EIGE</strong>' : 'Загружаем…'}${esc(state.launchMessage)}</p>
     ${error ? '<button type="button" class="btn-pill-primary" style="max-width:300px" onclick="startApp()">Попробовать снова</button>' : ''}</div>`;
 }
 function welcomeScreen() {
@@ -1229,7 +1254,7 @@ function home() {
 function peopleIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9.5" r="2.6"/><path d="M2.5 19c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6zM14.5 18.6c.6-2.6 2.2-4.2 4.6-4.2 1.4 0 2.4.6 2.4 1.8V19z"/></svg>`; }
 function projectIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.3L5.5 7.9 12 11.5l6.5-3.6zM5 9.6v6.3l6 3.3v-6.3zm8 3.3v6.3l6-3.3V9.6z"/></svg>`; }
 function peopleBanner(onclick = "go('people')") { return `<button type="button" class="fg-banner people" onclick="${onclick}" aria-label="Искать своих людей"><h2 class="fg-banner-title">искать<br>своих<br>людей</h2></button>`; }
-function projectsBanner(onclick = "go('projects')") { return `<button type="button" class="fg-banner projects" onclick="${onclick}" aria-label="Создать свой проект"><h2 class="fg-banner-title">создать<br>свой<br>проект</h2></button>`; }
+function projectsBanner(onclick = "go('projects')") { return `<button type="button" class="fg-banner projects" onclick="${onclick}" aria-label="Создать свой проект"><span class="fg-shape cube"><img src="assets/cube.webp" alt="" onerror="this.parentNode.remove()"></span><span class="fg-shape torus"><img src="assets/torus.webp" alt="" onerror="this.parentNode.remove()"></span><h2 class="fg-banner-title">создать<br>свой<br>проект</h2></button>`; }
 
 function people() {
   return `
@@ -1474,7 +1499,11 @@ function render() {
   const bodyClass = (name, on) => document.body.classList[on ? 'add' : 'remove'](name);
   bodyClass('fg-form', formScreen);
   bodyClass('fg-welcome-bg', state.launchState !== 'ready' || (!state.registered && !welcomeSeen));
-  if (state.launchState !== 'ready') { app.innerHTML = splashScreen(); return; }
+  if (state.launchState !== 'ready') {
+    const msg = state.launchState === 'loading' && typeof app.querySelector === 'function' && app.querySelector('.fg-splash .fg-ball') ? document.getElementById('splash-msg') : null;
+    if (msg) { msg.textContent = 'Загружаем… ' + state.launchMessage; return; }
+    app.innerHTML = splashScreen(); return;
+  }
   if (!state.registered) { app.innerHTML = welcomeSeen ? register() : welcomeScreen(); return; }
   let content = {
     home: home,
