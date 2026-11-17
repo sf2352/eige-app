@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FAF6D2">
+<meta name="theme-color" content="#F4F1E8">
 <title>EIGE — сообщество Якутии</title>
 <link rel="preconnect" href="https://stmczoshulmqhjxlkest.supabase.co" crossorigin>
 <link rel="preconnect" href="https://telegram.org" crossorigin>
@@ -708,6 +708,65 @@ body.keyboard-active .nav{display:none} body.keyboard-active #app{padding-bottom
 
 .chat-settings-content{padding:10px 2px}.chat-notify-row{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;cursor:pointer}.chat-notify-row input{width:19px;height:19px;accent-color:var(--green-deep);flex:none;margin-top:2px}.chat-notify-row small{display:block;color:var(--ink-muted);font-size:11px;line-height:1.5;margin-top:4px}.chat-rules{padding:10px 4px;border-top:1px solid #e3eadf}.chat-rules-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;color:var(--ink-muted)}.chat-rules textarea{margin:8px 0;min-height:85px}.chat-settings>button{margin-bottom:8px}
 
+/* ===== Дизайн из Figma: бежевый фон, олива, serif ===== */
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url(assets/pf-cyr.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url(assets/pf-lat.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400;font-display:swap;src:url(assets/pf-it-cyr.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400;font-display:swap;src:url(assets/pf-it-lat.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Oswald';font-style:normal;font-weight:200 700;font-display:swap;src:url(assets/os-cyr.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Oswald';font-style:normal;font-weight:200 700;font-display:swap;src:url(assets/os-lat.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--bg-cream:#f4f1e8;--bg-card:#fbf9f3;--border-soft:#e3ded0;--olive:#647832;--olive-deep:#4f6126;--sage:#c9ceb1;--sage-deep:#2f5a2f;--taupe:#b6ad93;--ink-primary:#1f1f1c;--ink-muted:#5b5a57;--green-deep:#1f3a28;--green-forest:#3f5a2e;--font-serif:'Playfair Display','Georgia','Times New Roman',serif;--font-caps:'Oswald','Arial Narrow','Roboto Condensed',sans-serif}
+body{background:#e8e4d9;color:var(--ink-primary)} #app{background:var(--bg-cream);box-shadow:0 8px 38px #2a2a2020;padding-bottom:110px}
+.app-header{padding:18px 22px 8px}.brand-header-title{font-family:var(--font-serif);font-weight:400;font-size:26px;letter-spacing:.5px;color:#111}.brand-header-title .sparkle{color:var(--olive)}.brand-header-sub{color:#6c6a62;font-size:9px}
+.brand-header svg{display:block}.brand-header svg rect,.brand-header svg line{stroke:#8d9a62}
+.screen-title{font-family:var(--font-serif);font-weight:400;text-transform:none;letter-spacing:-.2px;font-size:27px;color:#141414}.screen-title em{font-style:italic;font-weight:400}
+.eyebrow{font-family:var(--font-caps);font-weight:400;font-size:11px;letter-spacing:1.2px;color:#6c6a62}
+.card,.profile-stat-box{background:var(--bg-card);border:1px solid var(--border-soft);box-shadow:0 5px 18px #2a2a1a0a;border-radius:22px}
+.field-input,.field-select,.field-textarea{background:#fbf9f3;border:1px solid #e1dccc;color:var(--ink-primary);caret-color:var(--olive)}.field-input:focus,.field-textarea:focus,.field-select:focus{outline:2px solid #8d9a62;outline-offset:1px;border-color:#8d9a62;box-shadow:none;caret-color:var(--olive)}
+.field-label{color:#3b4a2a}
+.btn-pill-primary{background:var(--olive);border-color:var(--olive);color:#fff;letter-spacing:.6px;box-shadow:0 8px 22px #64783233}.btn-pill-primary:hover{background:var(--olive-deep)}
+.btn-pill-outline{background:#fbf9f3;color:var(--olive-deep);border-color:#9aa877}.btn-pill-outline:hover{background:#eef0e3}
+.header-badge{background:var(--sage);border-color:var(--sage);color:var(--sage-deep)}.gear-btn{border-color:#dcd7c7;background:#fbf9f3;color:#2d2d28}
+.chip{background:#fbf9f3;border-color:#dcd7c7;color:#4d4c46}.chip.active{background:var(--olive);border-color:var(--olive);color:#fff}
+.tag{background:#ecebdf;color:#4a4f36}.tag.match{background:#dfe6c6;color:#2f3f18;border-color:#8d9a62}.badge{background:#eceadb;color:#5e5a32}
+.avatar{background:#dde0c7;color:#3f4f23;border-radius:50%}.avatar.alt{background:#e4e3d4;color:#4a4f36}.avatar.warm{background:#efe6cf;color:#7a5e22}.avatar.blue{background:#dde3dc;color:#355546}
+.project-icon{background:#ecebdf;color:#5e6a3a}.person-name,.project-title{color:#161614}.match-score,.chat-menu-toggle,.btn-close,.modal-header h2{color:#1f1f1c}
+.people-row{border-bottom:1px solid #e3ded0;color:#1f1f1c}.people-row .arrow{color:var(--olive)}
+.search{background:var(--taupe);border:0;color:#1f1f1c;font-weight:600;padding:15px 20px 15px 46px;box-shadow:0 6px 16px #5a523d22;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%231f1f1c' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:18px center}
+.search::placeholder{color:#3d3a30;opacity:.75}.search:focus{outline:2px solid var(--olive);outline-offset:1px}
+.modal{background:var(--bg-cream)}.modal-bg{background:#1f1f1c99}.toast{background:#2a2a24;color:#fff}
+.demo-note,.empty,.person-sub,.skill-note{color:#6c6a62}
+.home-note{background:#ecebdf;color:#1f1f1c}.home-note-icon{background:#fbf9f3;color:var(--olive)}.ref-tile,.ref-creator{background:#fbf9f3}.ref-creator{background:#ecebdf}
+.chat-reaction-chip,.chat-action-menu,.chat-group-details,.chat-settings>summary{border-color:#dcd7c7;background:#f7f5ec}.chat-reaction-chip.selected{background:#dfe6c6;border-color:#8d9a62}.chat-settings[open]>summary{background:#ecebdf}.chat-reply-quote,.chat-reply-compose{border-left-color:var(--olive);background:#ecebdf}.chat-notify-row input{accent-color:var(--olive)}
+/* Нижнее меню: оливковая таблетка, как нижняя полоса в макете */
+.nav{left:50%;bottom:12px;width:min(100% - 24px,456px);border-radius:999px;background:var(--olive);border:0;padding:8px 6px;box-shadow:0 12px 30px #3f4a1f40;backdrop-filter:none;margin-bottom:env(safe-area-inset-bottom)}
+.nav button{color:#e7ead6;border-radius:999px;padding:7px 10px;min-width:64px;font-size:9.5px;letter-spacing:.3px}.nav button.active{color:#fff;background:#ffffff26}.nav svg{width:21px;height:21px}
+/* Заголовок с логотипом + «Hello, I am Eige!» (заставка и приветствие) */
+.fg-logo{width:66px;height:66px;display:block;margin:0 auto}.fg-logo svg{width:100%;height:100%;display:block}
+.fg-title{font-family:var(--font-serif);font-weight:400;font-size:36px;line-height:1.15;letter-spacing:-.3px;color:#111;text-align:center;margin:22px 0 14px}.fg-title em{font-style:italic;font-weight:400}
+.fg-caps{font-family:var(--font-caps);font-weight:400;text-transform:uppercase;font-size:12.5px;line-height:1.5;letter-spacing:.4px;color:#3d3c3a;text-align:center;margin:0 auto;max-width:360px}
+.fg-splash{min-height:calc(100vh - 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}.fg-splash .fg-title{margin-bottom:8px}.fg-splash .person-sub{text-align:center;max-width:300px}
+.fg-welcome{display:flex;flex-direction:column;min-height:calc(100vh - 20px);padding:46px 22px 30px}.fg-welcome-photo{margin:40px auto 0;width:min(100%,290px);aspect-ratio:4/3;border-radius:28px;overflow:hidden;background:#fff;box-shadow:0 14px 34px #3a3a2a30}.fg-welcome-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.fg-cta{margin-top:auto;width:100%;border:0;border-radius:999px;background:var(--sage);color:var(--sage-deep);padding:24px 26px;font-family:var(--font-sans);font-size:22px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 12px 28px #6c7a4a40;transition:transform .15s}.fg-cta:active{transform:scale(.98)}.fg-cta span{font-size:24px;font-weight:400;letter-spacing:-6px;margin-right:6px}
+/* Фото-баннеры разделов «Люди» и «Проекты» */
+.fg-banner{position:relative;display:block;width:100%;aspect-ratio:1.68;border:0;border-radius:30px;overflow:hidden;padding:24px 24px;text-align:left;color:#fff;cursor:pointer;background:#1f3a28 center/cover no-repeat;box-shadow:0 14px 32px #2a2a1a33;transition:transform .15s}.fg-banner:active{transform:scale(.985)}
+.fg-banner.people{background-image:url(assets/forest.jpg),linear-gradient(135deg,#243d22,#0f261a)}.fg-banner.projects{background-image:url(assets/chrome.jpg),linear-gradient(100deg,#0c4016,#0e1438)}
+.fg-banner.projects .fg-banner-title{top:auto;bottom:24px}
+.fg-banner-title{position:absolute;left:24px;top:22px;margin:0;font-family:var(--font-sans);font-weight:800;font-size:26px;line-height:1.05;letter-spacing:-.4px;text-shadow:0 2px 14px #00000066;max-width:60%}
+.fg-banner-sub{display:flex;align-items:center;gap:12px;margin:14px 2px 18px;color:#1f1f1c;font-size:13px;line-height:1.35}.fg-banner-sub svg{width:26px;height:26px;flex:none;fill:#1f1f1c}.fg-banner-sub p{margin:0;flex:1}
+.fg-refresh{width:34px;height:34px;flex:none;border:1px solid #dcd7c7;background:#fbf9f3;border-radius:50%;color:#1f1f1c;font-size:20px;line-height:1}
+.fg-home-status{display:flex;align-items:center;gap:12px;margin-top:22px;padding:14px 16px;border-radius:18px;background:#ecebdf;color:#1f1f1c}.fg-home-status strong{font-size:13px;display:block}.fg-home-status p{margin:3px 0 0;color:#5b5a57;font-size:11.5px}.fg-home-status .dot{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--sage);color:var(--sage-deep);font-weight:800}
+/* Экран анкеты — жёлтый градиент из макета */
+body.fg-form #app{background:linear-gradient(165deg,#fefdd0 0%,#fefbb0 45%,#fbe8bd 80%,#f8d7c0 100%)}
+body.fg-form .app-header{display:none}body.fg-form #app{padding-top:26px}body.fg-form .serge-banner-card{border:0;box-shadow:0 12px 30px #8a7a2a30}
+.field-input[type=file]{padding:8px 12px;font-size:12.5px;color:#5b5a57;font-weight:600}.field-input[type=file]::file-selector-button{border:0;border-radius:999px;background:var(--olive);color:#fff;font:700 12px var(--font-sans);padding:10px 16px;margin-right:12px;cursor:pointer}body.fg-form .field-input[type=file]::file-selector-button{background:#1d5c42}
+body.fg-form .screen-title{font-family:var(--font-sans);font-weight:800;text-transform:uppercase;font-size:20px;letter-spacing:.6px;color:#1f6a46;margin:16px 0 14px}
+body.fg-form .field-input,body.fg-form .field-select,body.fg-form .field-textarea{background:#fffde3cc;border:1px solid #ffffff;box-shadow:0 6px 16px #8a7a2a1f}body.fg-form .field-label{color:#1f6a46}
+body.fg-form .btn-pill-primary{background:#1d5c42;border-color:#1d5c42;color:#fff;font-size:15px;letter-spacing:.6px;box-shadow:0 10px 26px #1d5c4240}body.fg-form .btn-pill-outline{background:#fffde3cc;border-color:#1d5c42;color:#1d5c42}
+body.fg-form .chip{background:#fffde3cc;border-color:#fff;color:#2f4a34}body.fg-form .chip.active{background:#1d5c42;border-color:#1d5c42;color:#fff}body.fg-form .card,body.fg-form .ref-creator{background:#fffde3cc;border-color:#fff}
+body.fg-form .demo-note,body.fg-form .skill-note{color:#5b6b47}
+body.fg-welcome-bg .app-header{display:none}
+
 </style>
 </head>
 <body>
@@ -740,6 +799,7 @@ function set(k, val) {
   try { localStorage.setItem('eige_' + k, JSON.stringify(val)); } catch(e){}
 }
 
+let welcomeSeen = false; // приветствие «Hello, I am Eige!» показывается один раз, до анкеты
 let state = {
   page: 'register',
   launchState: 'loading',
@@ -929,6 +989,27 @@ function clearAvatar(id,project) {
   if(hidden)hidden.value=''; if(preview)preview.innerHTML=avatarMarkup('',project?'✦':'✳',project); if(status)status.textContent='Картинка будет удалена после сохранения.';
 }
 
+// Круглый логотип из макета: кольцо, надпись EIGE✦ и три сэргэ под дугой. Вектор — не размывается.
+function roundLogo() {
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#c0c6a4"/><circle cx="50" cy="50" r="40" fill="#d8dcc3"/><circle cx="50" cy="50" r="33" fill="#e9ebdb"/>
+    <text x="50" y="40" text-anchor="middle" font-family="Playfair Display,Georgia,serif" font-size="15" fill="#3f4f23" letter-spacing=".5">EIGE</text><text x="76" y="33" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="#647832">✦</text>
+    <path d="M22 68c8-9 48-9 56 0" fill="none" stroke="#647832" stroke-width="1.6"/>
+    <g fill="#8a6a3a"><rect x="33" y="50" width="3.4" height="16" rx="1"/><rect x="48.3" y="46" width="3.4" height="20" rx="1"/><rect x="63.6" y="50" width="3.4" height="16" rx="1"/></g>
+    <g fill="#5a4426"><rect x="33" y="50" width="3.4" height="2.4"/><rect x="48.3" y="46" width="3.4" height="2.4"/><rect x="63.6" y="50" width="3.4" height="2.4"/></g></svg>`;
+}
+function splashScreen() {
+  const error = state.launchState === 'error';
+  return `<div class="fg-splash"><div class="fg-logo">${roundLogo()}</div><h1 class="fg-title"><em>Hello,</em> I am Eige!</h1>
+    <p class="person-sub">${error ? '<strong style="display:block;color:#1f1f1c;margin-bottom:4px">Не удалось открыть EIGE</strong>' : 'Загружаем…'}${esc(state.launchMessage)}</p>
+    ${error ? '<button type="button" class="btn-pill-primary" style="max-width:300px" onclick="startApp()">Попробовать снова</button>' : ''}</div>`;
+}
+function welcomeScreen() {
+  return `<div class="fg-welcome"><div class="fg-logo">${roundLogo()}</div><h1 class="fg-title"><em>Hello,</em> I am Eige!</h1>
+    <p class="fg-caps">Наш сайт объединяет учеников, выпускников и специалистов, чтобы делиться знаниями, находить наставников и создавать проекты вместе. Мы также стремимся сохранять язык и культуру Саха и создавать более сплочённое сообщество.</p>
+    <div class="fg-welcome-photo"><img src="assets/lily.jpg" alt="" onerror="this.parentNode.style.display='none'"></div>
+    <button type="button" class="fg-cta" onclick="startRegistration()">Создать анкету <span>››</span></button></div>`;
+}
+function startRegistration() { welcomeSeen = true; render(); window.scrollTo({top:0}); }
 function appHeader() {
   return `
     <header class="app-header">
@@ -1058,7 +1139,7 @@ function register() {
         ${sergeSvg()}
       </div>
 
-      <div class="screen-title">РЕГИСТРАЦИЯ</div>
+      <div class="screen-title">${state.registered ? 'МОЯ АНКЕТА' : 'СОЗДАТЬ АНКЕТУ'}</div>
 
       <form class="form-blank" onsubmit="saveProfile(event)">
         ${avatarInput('profile-avatar',p.avatar_data)}
@@ -1115,7 +1196,7 @@ function register() {
 
         <!-- Primary pill button: high contrast typography -->
         <button class="btn-pill-primary" type="submit">
-          СОХРАНИТЬ АНКЕТУ
+          СОХРАНИТЬ АНКЕТУ <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.5L16 9.5"/></svg>
         </button>
 
         ${p.name ? `
@@ -1133,28 +1214,31 @@ function register() {
 
 function home() {
   const visible=state.profile?.is_listed === true;
+  const name = esc((state.profile?.name || '').trim().split(/\s+/)[0] || '');
   return `<div class="wrap">
-    <div class="eige-welcome"><div class="eige-welcome-top"><span class="eige-welcome-badge">Пространство Якутии</span><span class="eige-welcome-mark">EIGE ✦</span></div>
-      <div><h1>Большие идеи<br><em>начинаются</em><br>с людей</h1><p>Знакомься, делись опытом и создавай проекты вместе с сообществом.</p></div>
-      <svg class="eige-symbol" viewBox="0 0 160 160" aria-hidden="true"><rect x="32" y="32" width="96" height="96" transform="rotate(45 80 80)"/><rect x="45" y="45" width="70" height="70" transform="rotate(45 80 80)"/><circle cx="80" cy="80" r="18"/><path d="M80 0v160M0 80h160M24 24l112 112M136 24L24 136"/></svg>
-    </div>
-    <div class="home-section-title"><h2>Начни с главного</h2><span>ВМЕСТЕ СИЛЬНЕЕ</span></div>
-    <div class="home-action-grid">
-      <button type="button" class="home-action" onclick="go('people')"><span class="home-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="4"/><path d="M2 20a7 7 0 0 1 14 0M19 11v6m-3-3h6"/></svg></span><strong>Люди</strong><small>Единомышленники и наставники</small></button>
-      <button type="button" class="home-action" onclick="go('projects')"><span class="home-action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span><strong>Проекты</strong><small>Идеи и команды сообщества</small></button>
-    </div>
-    <div class="home-profile-status"><span class="home-profile-dot">${visible?'✓':'○'}</span><div><strong>${visible?'Твоя анкета опубликована':'Твоя анкета скрыта'}</strong><p>${visible?'Участники могут найти тебя в разделе «Люди».':'Видимость можно изменить в настройках профиля.'}</p></div></div>
+    <div class="fg-logo" style="margin-top:6px">${roundLogo()}</div>
+    <h1 class="fg-title" style="font-size:32px;margin:16px 0 10px">${name ? `<em>Привет,</em> ${name}!` : `<em>Hello,</em> I am Eige!`}</h1>
+    <p class="fg-caps" style="margin-bottom:26px">Ученики, выпускники и специалисты Якутии — вместе делимся знаниями и создаём проекты</p>
+    ${peopleBanner()}
+    <div class="fg-banner-sub">${peopleIcon()}<p>находи наставников, друзей и единомышленников для своих идей</p></div>
+    ${projectsBanner()}
+    <div class="fg-banner-sub">${projectIcon()}<p>собирай команду, публикуй идею и принимай заявки</p></div>
+    <div class="fg-home-status"><span class="dot">${visible?'✓':'○'}</span><div><strong>${visible?'Твоя анкета опубликована':'Твоя анкета скрыта'}</strong><p>${visible?'Участники могут найти тебя в разделе «Люди».':'Видимость можно изменить в настройках профиля.'}</p></div></div>
   </div>`;
 }
+function peopleIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.4"/><circle cx="17" cy="9.5" r="2.6"/><path d="M2.5 19c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6zM14.5 18.6c.6-2.6 2.2-4.2 4.6-4.2 1.4 0 2.4.6 2.4 1.8V19z"/></svg>`; }
+function projectIcon() { return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.3L5.5 7.9 12 11.5l6.5-3.6zM5 9.6v6.3l6 3.3v-6.3zm8 3.3v6.3l6-3.3V9.6z"/></svg>`; }
+function peopleBanner(onclick = "go('people')") { return `<button type="button" class="fg-banner people" onclick="${onclick}" aria-label="Искать своих людей"><h2 class="fg-banner-title">искать<br>своих<br>людей</h2></button>`; }
+function projectsBanner(onclick = "go('projects')") { return `<button type="button" class="fg-banner projects" onclick="${onclick}" aria-label="Создать свой проект"><h2 class="fg-banner-title">создать<br>свой<br>проект</h2></button>`; }
 
 function people() {
   return `
     <div class="wrap">
-      <div class="eyebrow">ВМЕСТЕ МЫ СИЛЬНЕЕ</div>
-      <div style="display:flex;align-items:center;gap:12px"><h1 class="screen-title" style="text-align:left;margin-top:6px">Люди сообщества</h1><button type="button" onclick="loadCommunity(false)" aria-label="Обновить список людей" title="Обновить" style="width:34px;height:34px;border:1px solid var(--border-soft);background:var(--bg-card);border-radius:50%;color:var(--green-deep);font-size:20px;line-height:1">↻</button></div>
-      <p style="color:var(--ink-muted);font-size:12px;margin:0 0 16px">Находи наставников, друзей и единомышленников для своих идей.</p>
-      
-      <input class="search" id="search" placeholder="⌕  Имя, навык или направление" value="${esc(state.search)}" oninput="searchChange(this.value)">
+      <div style="height:6px"></div>
+      ${peopleBanner("document.getElementById('search')?.focus()")}
+      <div class="fg-banner-sub">${peopleIcon()}<p>находи наставников, друзей и единомышленников для своих идей</p><button type="button" class="fg-refresh" onclick="loadCommunity(false)" aria-label="Обновить список людей" title="Обновить">↻</button></div>
+
+      <input class="search" id="search" placeholder="Имя, навык или направление" value="${esc(state.search)}" oninput="searchChange(this.value)">
       
       <div class="filters" id="filters">${peopleFilterChips()}</div>
 
@@ -1239,14 +1323,11 @@ function personCard(p) {
 function projects() {
   return `
     <div class="wrap">
-      <div class="eyebrow">ОТ ИДЕИ К ДЕЙСТВИЮ</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-        <div style="display:flex;align-items:center;gap:12px"><h1 class="screen-title" style="margin:0;text-align:left">Проекты</h1><button type="button" onclick="loadProjects(false)" aria-label="Обновить список проектов" title="Обновить" style="width:34px;height:34px;border:1px solid var(--border-soft);background:var(--bg-card);border-radius:50%;color:var(--green-deep);font-size:20px;line-height:1">↻</button></div>
-        <button class="header-badge" onclick="openProjectForm()">＋ Создать</button>
-      </div>
-      <p style="color:var(--ink-muted);font-size:12px;margin:8px 0 16px">Инициативы молодежи и сообщества Якутии.</p>
+      <div style="height:6px"></div>
+      ${projectsBanner('openProjectForm()')}
+      <div class="fg-banner-sub">${projectIcon()}<p>инициативы молодёжи и сообщества Якутии — нажми на карточку, чтобы создать свой</p><button type="button" class="fg-refresh" onclick="loadProjects(false)" aria-label="Обновить список проектов" title="Обновить">↻</button></div>
 
-      <input class="search" id="search" placeholder="⌕  Поиск по проектам" value="${esc(state.search)}" oninput="searchChange(this.value)">
+      <input class="search" id="search" placeholder="Поиск по проектам" value="${esc(state.search)}" oninput="searchChange(this.value)">
 
       <div class="filters" id="filters">${projectFilterChips()}</div>
 
@@ -1389,11 +1470,12 @@ function settings() {
 
 function render() {
   let app = document.getElementById('app');
-  if (state.launchState !== 'ready') {
-    app.innerHTML = appHeader() + `<div class="wrap"><div class="card" style="margin-top:25px;text-align:center"><strong>${state.launchState === 'loading' ? 'Загружаем EIGE…' : 'Не удалось открыть EIGE'}</strong><p class="person-sub">${esc(state.launchMessage)}</p>${state.launchState === 'error' ? '<button type="button" class="btn-pill-primary" onclick="startApp()">Попробовать снова</button>' : ''}</div></div>`;
-    return;
-  }
-  if (!state.registered) { app.innerHTML = appHeader() + register(); return; }
+  const formScreen = state.launchState === 'ready' && (!state.registered ? welcomeSeen : state.page === 'register');
+  const bodyClass = (name, on) => document.body.classList[on ? 'add' : 'remove'](name);
+  bodyClass('fg-form', formScreen);
+  bodyClass('fg-welcome-bg', state.launchState !== 'ready' || (!state.registered && !welcomeSeen));
+  if (state.launchState !== 'ready') { app.innerHTML = splashScreen(); return; }
+  if (!state.registered) { app.innerHTML = welcomeSeen ? register() : welcomeScreen(); return; }
   let content = {
     home: home,
     register: register,
@@ -2239,13 +2321,14 @@ async function refreshCommunityQuietly() {
 Object.assign(window, {
   state, startApp, go, filterPeople, openProjectForm, personDetail, projectDetail, showMyTelegramId, adminSetReportFilter, askReport, submitReport, askChatReport, submitChatReport, toggleChatMenu, reactToChat, chooseChatReply, cancelChatReply, onChatSettingsToggle, loadChatSettings, setChatNotifications, refreshChatNotificationSetting, saveChatRules, openChatMembers, onChatGroupToggle, loadChatGroup, saveChatGroup, openChatGroup, adminChatAction, adminAskChatAction, adminAskUnblockChat, adminUnblockChat, adminReviewReport, adminAskReportDelete, adminDeleteReported, askDeleteAccount, deleteMyAccount, askLeaveProject, leaveProject, askRemoveMember, removeMember, adminLogin, adminLogout, adminRefresh, adminLoadMore, adminAskVerify, adminVerify, adminAskDelete, adminDelete,
   closeModal, saveProfile, saveProject, requestAction, searchChange,
-  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists, loadAvatars,
+  render, toggleExtraFields, checkTelegram, syncProfile, refreshOwnProfile, saveSharingPreferences, loadCommunity, openRealPerson, saveAvailability, loadProjects, applyProject, viewProjectRequests, decideRequest, withdrawRequest, togglePeopleFilter, openTelegramUser, openProjectChat, refreshProjectChat, sendProjectChat, uploadAvatar, clearAvatar, loadMyProjects, editMyProject, saveMyProject, askDeleteMyProject, deleteMyProject, myProjectRequests, setProjectFilter, prefetchLists, loadAvatars, startRegistration,
   parseSkills, skillTags, toggleSkill, addCustomSkill, openTeamMatch, runTeamMatch, openMatchPerson, peopleResults, projectResults
 });
 
 try {
   window.Telegram?.WebApp?.ready();
   window.Telegram?.WebApp?.expand();
+  try { window.Telegram?.WebApp?.setHeaderColor?.('#f4f1e8'); window.Telegram?.WebApp?.setBackgroundColor?.('#f4f1e8'); } catch (_) {}
 } catch(e) {}
 
 render();
